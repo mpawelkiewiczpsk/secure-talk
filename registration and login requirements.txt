@@ -1,0 +1,47 @@
+1. Proces rejestracji i dostępu do aplikacji
+Zapytanie o założenie konta:
+
+Użytkownik, aby uzyskać dostęp, wysyła prośbę do administratora o założenie konta (formularz w aplikacji lub wiadomość e-mail z unikalnym ID użytkownika).
+Administrator w panelu zarządzania generuje konto i unikalny token dostępu dla użytkownika.
+Wprowadzenie tokenu dostępu:
+
+Podczas pierwszego logowania użytkownik wpisuje token dostępu otrzymany od administratora.
+Token jest weryfikowany przez backend:
+Jeśli token jest poprawny, użytkownik zostaje zalogowany i token zostaje zapisany w Secure Storage.
+Jeśli token jest niepoprawny, użytkownik otrzymuje komunikat o błędzie.
+Zapis tokenu w Secure Storage:
+
+Po weryfikacji token zostaje zapisany lokalnie w Secure Storage przy użyciu modułu expo-secure-store.
+Token jest używany do autoryzacji wszystkich przyszłych żądań do API.
+Dostęp chroniony biometrią:
+
+Po pierwszym logowaniu użytkownik konfiguruje biometrię (odcisk palca/FaceID).
+Przy kolejnych logowaniach aplikacja weryfikuje tożsamość użytkownika za pomocą modułu expo-local-authentication.
+Token pozostaje w Secure Storage i nie jest dostępny dla aplikacji bez pomyślnej autoryzacji biometrycznej.
+2. Proces logowania użytkownika
+Sprawdzenie tokenu w Secure Storage:
+
+Aplikacja sprawdza, czy istnieje zapisany token.
+Jeśli token istnieje, użytkownik jest proszony o autoryzację biometryczną.
+Autoryzacja biometryczna:
+
+Weryfikacja tożsamości użytkownika za pomocą expo-local-authentication.
+Po pomyślnej autoryzacji użytkownik uzyskuje dostęp do aplikacji.
+Weryfikacja tokenu na serwerze:
+
+Przy każdym uruchomieniu aplikacja wysyła token do serwera w celu weryfikacji:
+Jeśli token jest ważny, dostęp zostaje przyznany.
+Jeśli token wygasł lub został unieważniony, użytkownik jest proszony o kontakt z administratorem.
+3. Zarządzanie tokenami przez administratora
+Generowanie tokenów:
+
+Administrator korzysta z panelu zarządzania (webowego) do tworzenia kont i generowania unikalnych tokenów dla użytkowników.
+Tokeny są ważne przez określony czas (np. 7 dni) lub do momentu pierwszego użycia.
+Unieważnianie tokenów:
+
+Administrator ma możliwość unieważnienia tokenów użytkowników w przypadku podejrzenia nadużyć.
+Resetowanie tokenów:
+
+Jeśli użytkownik straci token lub zmieni urządzenie, administrator może wygenerować nowy.
+
+Po poprawnym zalogowaniu uzysujemy dostęp do chatu i forum.

@@ -1,0 +1,117 @@
+1. Struktura aplikacji
+Ekrany aplikacji
+Ekran zgłoszenia rejestracji:
+
+Formularz do przesłania danych wymaganych przez administratora do założenia konta (np. imię, nazwisko, e-mail, cel użycia aplikacji).
+Informacja o oczekiwaniu na token od administratora.
+Powiadomienie push lub e-mail po aktywacji konta przez administratora.
+Ekran logowania (wprowadzenie tokenu):
+
+Pole tekstowe do wprowadzenia tokenu dostępu.
+Przyciski:
+"Zaloguj" (weryfikacja tokenu na serwerze).
+"Poproś o nowy token" (kontakt z administratorem w przypadku problemów z logowaniem).
+Walidacja tokenu:
+Poprawny: Przechodzenie do ekranu konfiguracji biometrii.
+Błędny: Komunikat o błędzie.
+Ekran autoryzacji biometrycznej:
+
+Wymaga uwierzytelnienia biometrycznego (FaceID/odcisk palca).
+Po pozytywnej weryfikacji, użytkownik zostaje przekierowany na ekran główny.
+Ekran główny:
+
+Centralny punkt nawigacyjny aplikacji.
+Podzielony na Chat i Forum.
+Dodatkowy dostęp do Ustawień.
+Ekran ustawień:
+
+Opcje zarządzania kontem:
+Wylogowanie.
+Zmiana tokenu.
+Dezaktywacja konta.
+Opcje biometrii:
+Włącz/wyłącz logowanie biometryczne.
+Reset konfiguracji.
+2. Szczegóły ekranu głównego
+Ekran główny jest podzielony na dwie główne sekcje: Chat i Forum, z oddzielnym dostępem do ustawień.
+
+Struktura ekranu głównego
+Nagłówek:
+
+Wyświetlana nazwa użytkownika i zdjęcie profilowe (jeśli zostało przesłane).
+Ikona ustawień w prawym górnym rogu.
+Sekcja Chat:
+
+Przegląd aktywnych rozmów:
+Lista rozmów z ostatnimi wiadomościami i czasem ich wysłania.
+Ikony statusu:
+Niebieski (przeczytane), szary (nieprzeczytane).
+Opcja wyszukiwania:
+Pasek wyszukiwania umożliwia przeszukiwanie rozmów według nazwy użytkownika lub treści wiadomości.
+Opcja tworzenia nowej rozmowy:
+Przycisk „+” w prawym dolnym rogu do rozpoczęcia nowej rozmowy.
+Wybór użytkownika z listy kontaktów.
+Powiadomienia:
+Badge z liczbą nowych wiadomości na ikonie sekcji.
+Sekcja Forum:
+
+Przegląd kategorii:
+Lista kategorii tematycznych (np. Bezpieczeństwo, Nowości, Pytania).
+Popularne wątki:
+Lista najpopularniejszych wątków na forum (wg liczby odpowiedzi i polubień).
+Opcja wyszukiwania:
+Pasek wyszukiwania do przeszukiwania tematów i postów.
+Opcja tworzenia nowego wątku:
+Przycisk „+” w prawym dolnym rogu, prowadzący do formularza tworzenia wątku.
+3. Szczegóły sekcji Chat
+Lista rozmów:
+
+Każda rozmowa zawiera:
+Nazwę użytkownika (lub nazwę grupy).
+Ostatnią wiadomość i czas jej wysłania.
+Status (przeczytane/nieprzeczytane).
+Po kliknięciu na rozmowę użytkownik przechodzi do szczegółowego widoku rozmowy.
+Widok rozmowy:
+
+Obszar wiadomości:
+Wiadomości uporządkowane chronologicznie.
+Obsługa multimediów (zdjęcia, dokumenty, filmy).
+Pole tekstowe:
+Możliwość pisania wiadomości, dodawania emoji, załączników.
+Przyciski: „Wyślij” i „Dodaj załącznik”.
+Szyfrowanie:
+Informacja o tym, że rozmowa jest szyfrowana end-to-end.
+4. Szczegóły sekcji Forum
+Lista kategorii tematycznych:
+
+Przykładowe kategorie:
+Bezpieczeństwo aplikacji mobilnych.
+Nowinki technologiczne.
+Pytania i odpowiedzi.
+Kliknięcie w kategorię przenosi użytkownika do listy wątków w tej kategorii.
+Widok listy wątków:
+
+Każdy wątek zawiera:
+Tytuł wątku.
+Liczbę odpowiedzi i polubień.
+Datę ostatniej aktywności.
+Po kliknięciu w wątek użytkownik przechodzi do szczegółowego widoku wątku.
+Widok szczegółowy wątku:
+
+Wyświetlanie postów w formie dyskusji.
+Możliwość odpowiadania na posty, polubień i zgłaszania naruszeń.
+Oznaczenia ról użytkowników (np. moderator, administrator).
+Tworzenie wątku:
+
+Formularz:
+Pole na tytuł wątku.
+Wybór kategorii.
+Edytor tekstu do napisania treści.
+Przycisk „Opublikuj”.
+5. Powiadomienia
+Chat:
+Powiadomienia o nowych wiadomościach w rozmowach.
+Wyświetlane w systemowych powiadomieniach push.
+Forum:
+Powiadomienia o odpowiedziach na wątki użytkownika.
+Informacje o polubieniach postów lub odpowiedziach.
