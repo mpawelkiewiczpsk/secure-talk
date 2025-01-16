@@ -12,7 +12,10 @@ def register_request():
     first_name = request.json['first_name']
     last_name = request.json['last_name']
     email = request.json['email']
-    purpose = request.json['purpose']
+    if 'purpose' in request.json:
+        purpose = request.json['purpose']
+    else:
+        purpose = None
     if not first_name or not last_name or not email:
         return jsonify(message="Brak wymaganych pól"
                        ), 400
@@ -27,19 +30,20 @@ def register_request():
     connection.close()
     return jsonify(message="Zgłoszenie rejestracji przyjęto")
 
-@app.route('/generate-token/<id>', methods=['PUT'])
-def generate_token():
-    user_id = request.args.get('id')
-    new_token = uuid4()
+@app.route('/generate-token/<uid>', methods=['PUT'])
+def generate_token(uid):
+    user_id = uid
+    new_token = str(uuid4())
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
         user = cursor.execute("UPDATE users SET token = ?, isActive = 1 WHERE id = ?",
-                       (new_token, user_id,)).fetchone()
+                       (new_token, user_id,))
+        connection.commit()
         if not user:
             return jsonify(message="Nie znaleziono użytkownika"), 404
-        connection.commit()
-    except sqlite3.Error:
+    except sqlite3.Error as err:
+        print(err)
         return jsonify(message="Błąd serwera"), 500
     connection.close()
     return jsonify(message="Token wygenerowany", token=new_token)
