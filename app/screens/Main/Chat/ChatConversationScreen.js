@@ -1,57 +1,102 @@
-// app/screens/Main/Chat/ChatConversationScreen.js
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  FlatList, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator,
+  Alert 
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ChatService } from '../../../services/chatService';
+import MessageBubble from '../../../components/MessageBubble';
 
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet } from 'react-native';
-
-export default function ChatConversationScreen({ route }) {
-  const { conversationId } = route.params; // Przykładowo => "1" albo "2"
-  const [messages, setMessages] = useState([
-    // Przykładowe wiadomości
-    { id: 'm1', text: 'Cześć, co słychać?', sender: 'Jan', timestamp: '10:00' },
-    { id: 'm2', text: 'Hej! U mnie ok.', sender: 'Ty', timestamp: '10:01' },
-  ]);
+export default function ChatConversationScreen({ route, navigation }) {
+  const { conversationId, userName } = route.params;
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [socket, setSocket] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  useEffect(() => {
+    navigation.setOptions({ title: userName || 'Czat' });
 
-    const newMsgObj = {
-      id: `m${Date.now()}`,
-      text: newMessage,
-      sender: 'Ty',
-      timestamp: new Date().toLocaleTimeString(),
+    const initializeSocket = async () => {
+      try {
+        const socketInstance = await ChatService.initializeSocket();
+        setSocket(socketInstance);
+        
+        socketInstance.on('message', handleNewMessage);
+        socketInstance.emit('join_conversation', { conversationId });
+
+        const previousMessages = await ChatService.getMessages(conversationId);
+        setMessages(previousMessages);
+      } catch (error) {
+        Alert.alert('Błąd', 'Nie udało się połączyć z serwerem');
+      }
     };
-    setMessages((prev) => [...prev, newMsgObj]);
-    setNewMessage('');
+
+    initializeSocket();
+
+    return () => {
+      if (socket) {
+        socket.off('message');
+        socket.emit('leave_conversation', { conversationId });
+      }
+    };
+  }, [conversationId, userName]);
+
+  const handleNewMessage = (newMsg) => {
+    setMessages(prev => [newMsg, ...prev]);
   };
 
-  const renderItem = ({ item }) => (
-    <View style={[styles.messageBubble, 
-      item.sender === 'Ty' ? styles.myMessage : styles.theirMessage]}>
-      <Text style={styles.msgText}>{item.text}</Text>
-      <Text style={styles.msgTimestamp}>{item.timestamp}</Text>
-    </View>
-  );
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !socket) return;
+    try {
+      await ChatService.sendMessage(conversationId, newMessage);
+      setNewMessage('');
+    } catch (err) {
+      Alert.alert('Błąd', 'Nie udało się wysłać wiadomości');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Rozmowa #{conversationId}</Text>
-
       <FlatList
-        style={styles.messagesList}
+        style={styles.messageList}
         data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+        renderItem={({ item }) => <MessageBubble message={item} />}
+        keyExtractor={(item) => item.id.toString()}
+        inverted={true}
       />
-
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.textInput}
-          placeholder="Napisz wiadomość..."
           value={newMessage}
           onChangeText={setNewMessage}
+          placeholder="Napisz wiadomość..."
+          style={styles.input}
+          multiline
         />
-        <Button title="Wyślij" onPress={handleSendMessage} />
+        <TouchableOpacity 
+          style={styles.sendButton} 
+          onPress={sendMessage}
+          disabled={!newMessage.trim() || !socket}
+        >
+          <Ionicons 
+            name="send" 
+            size={24} 
+            color={newMessage.trim() && socket ? "#007AFF" : "#999"} 
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -60,54 +105,39 @@ export default function ChatConversationScreen({ route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
-  header: {
-    padding: 12,
-    fontWeight: 'bold',
-    fontSize: 16,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
-  },
-  messagesList: {
+  center: {
     flex: 1,
-    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  messageBubble: {
-    marginVertical: 4,
-    padding: 8,
-    borderRadius: 8,
-    maxWidth: '80%',
-  },
-  myMessage: {
-    backgroundColor: '#dcf8c6',
-    alignSelf: 'flex-end',
-  },
-  theirMessage: {
-    backgroundColor: '#eee',
-    alignSelf: 'flex-start',
-  },
-  msgText: {
-    fontSize: 14,
-  },
-  msgTimestamp: {
-    fontSize: 10,
-    color: '#666',
-    marginTop: 2,
-    textAlign: 'right',
+  messageList: {
+    flex: 1,
+    padding: 10,
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 8,
+    padding: 10,
     borderTopWidth: 1,
-    borderColor: '#ccc',
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
     alignItems: 'center',
   },
-  textInput: {
+  input: {
     flex: 1,
+    marginRight: 10,
+    padding: 10,
+    maxHeight: 100,
     borderWidth: 1,
-    borderColor: '#ccc',
-    marginRight: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    borderColor: '#ddd',
+    borderRadius: 20,
+    backgroundColor: '#f8f8f8',
   },
+  sendButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 });

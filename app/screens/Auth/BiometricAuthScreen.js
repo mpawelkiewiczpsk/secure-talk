@@ -16,23 +16,23 @@ export default function BiometricAuthScreen({ route, navigation }) {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       if (!hasHardware) {
         Alert.alert('Brak biometrii', 'Urządzenie nie obsługuje biometrii.');
-        // Zaloguj bez biometrii
         await login(token);
-        navigation.replace('MainNavigator');
+        navigation.replace('Main');
         return;
       }
-
+  
       const authResult = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Zaloguj się biometrią',
       });
-
+  
       if (authResult.success) {
-        // Zapisujemy token w SecureStore (poprzez login z AuthContext)
         await login(token);
         Alert.alert('Sukces', 'Zalogowano przy użyciu biometrii');
-        navigation.replace('MainNavigator'); // Przejdź do ekranu głównego
+        navigation.replace('Main');
       } else {
         Alert.alert('Błąd biometrii', 'Nie udało się potwierdzić tożsamości.');
+        await login(token);
+        navigation.replace('Main');
         navigation.goBack();
       }
     } catch (err) {

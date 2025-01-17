@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 
-const API_URL = 'http://192.168.33.21:3000'; // Wstaw swój adres serwera
+const API_URL = 'http://10.100.6.127:3000'; 
 
 export async function requestRegistration(data) {
   try {
@@ -31,7 +31,12 @@ export async function verifyToken(token) {
       const error = await response.json();
       throw new Error(error.message || 'Token nieprawidłowy');
     }
-    return await response.json(); // np. { valid: true, userData: {...} }
+    const result = await response.json();
+    if (result.valid) {
+      return result; 
+    } else {
+      throw new Error('Token nieprawidłowy');
+    }
   } catch (err) {
     Alert.alert('Błąd', err.message);
     throw err;
@@ -50,7 +55,7 @@ export async function checkTokenValidity(token) {
       const error = await response.json();
       throw new Error(error.message || 'Błąd weryfikacji tokenu');
     }
-    return await response.json(); // np. { valid: true, userData: {...} }
+    return await response.json(); 
   } catch (err) {
     console.log('Błąd weryfikacji tokenu:', err.message);
     throw err;

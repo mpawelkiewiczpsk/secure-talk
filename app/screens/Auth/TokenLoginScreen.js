@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { verifyToken } from '../../services/authService';
 
 export default function TokenLoginScreen({ navigation }) {
@@ -13,13 +14,16 @@ export default function TokenLoginScreen({ navigation }) {
     try {
       const response = await verifyToken(tokenInput);
       if (response.valid) {
+        await AsyncStorage.setItem('userToken', tokenInput);
         // Token jest poprawny -> przejście do ekranu biometrii
         navigation.navigate('BiometricAuth', { token: tokenInput });
       } else {
         Alert.alert('Błąd', 'Token nieprawidłowy lub wygasł');
+        await AsyncStorage.removeItem('userToken');
       }
     } catch (err) {
       console.log('Błąd weryfikacji tokenu:', err.message);
+      await AsyncStorage.removeItem('userToken');
       // Komunikat błędu i tak jest w authService, więc tu można pominąć
     }
   };
