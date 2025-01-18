@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 
-const API_URL = 'http://10.100.6.127:3000'; 
+const API_URL = 'http://192.168.1.107:3000'; 
 
 export async function requestRegistration(data) {
   try {
@@ -13,7 +13,7 @@ export async function requestRegistration(data) {
       const error = await response.json();
       throw new Error(error.message || 'Błąd podczas rejestracji');
     }
-    return await response.json(); // np. { message: 'Zarejestrowano' }
+    return await response.json(); 
   } catch (err) {
     Alert.alert('Błąd', err.message);
     throw err;

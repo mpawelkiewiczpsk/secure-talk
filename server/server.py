@@ -13,9 +13,71 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
+def row_to_dict(cursor, row):
+    if row is None:
+        return None
+    columns = [column[0] for column in cursor.description]
+    return dict(zip(columns, row))
 
+def initialize_database():
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firstName TEXT NOT NULL,
+                lastName TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                purpose TEXT,
+                token TEXT UNIQUE,
+                isActive INTEGER DEFAULT 0
+            )
+        """)
+        
+        # Create conversations table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # Create conversation_participants table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_participants (
+                conversation_id INTEGER,
+                user_id INTEGER,
+                FOREIGN KEY(conversation_id) REFERENCES conversations(id),
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                PRIMARY KEY (conversation_id, user_id)
+            )
+        """)
+
+        # Create messages table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                conversation_id INTEGER,
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                FOREIGN KEY(conversation_id) REFERENCES conversations(id)
+            )
+        """)
+        
+        connection.commit()
+        print("Database initialized successfully.")
+    except sqlite3.Error as e:
+        print(f"Database initialization error: {str(e)}")
+    finally:
+        connection.close()
+        
+initialize_database()
 init_socket(socketio)
-
 @app.route('/register-request', methods=['POST'])
 def register_request():
     first_name = request.json['first_name']
@@ -62,34 +124,38 @@ def verify_token():
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
-        user = cursor.execute("SELECT * FROM users WHERE token = ? AND isActive = 1",
-                              (token,)).fetchone()
-        if not user:
+        user = cursor.execute("SELECT * FROM users WHERE token = ? AND isActive = 1", (token,)).fetchone()
+        user_dict = row_to_dict(cursor, user)
+        if not user_dict:
             return jsonify(valid=False, message="Nieprawidłowy token"), 401
     except sqlite3.Error:
         return jsonify(valid=False, message="Błąd bazy danych"), 500
     finally:
         connection.close()
-    return jsonify(valid=True, userData=user)
+    return jsonify(valid=True, userData=user_dict)
 
-@app.route('/check-token')
+@app.route('/check-token', methods=['GET'])
 def check_token():
     auth_header = request.headers.get('Authorization')
     if not auth_header:
         return jsonify(message="Brak nagłówka Authorization"), 400
-    token = auth_header.split()[1]
+    token = auth_header.split()[1] if len(auth_header.split()) > 1 else None
     if not token:
         return jsonify(message="Brak tokenu w nagłówku"), 400
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
         user = cursor.execute("SELECT * FROM users WHERE token = ?", (token,)).fetchone()
-        if not user:
+        user_dict = row_to_dict(cursor, user)
+        if not user_dict:
             return jsonify(message="Token nieważny"), 401
     except sqlite3.Error:
         return jsonify(message="Błąd serwera"), 500
-    connection.close()
-    return jsonify(valid=True, userData=user)
+    finally:
+        connection.close()
+    return jsonify(valid=True, userData=user_dict)
+
+
 @app.route('/conversations', methods=['GET'])
 def get_conversations():
     auth_header = request.headers.get('Authorization')
@@ -103,23 +169,16 @@ def get_conversations():
         user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
         if not user:
             return jsonify(message="Nieprawidłowy token"), 401
-            
-        conversations = cursor.execute("""
-            SELECT DISTINCT c.id, c.name, c.created_at, 
-                   (SELECT COUNT(*) FROM messages m 
-                    WHERE m.conversation_id = c.id) as message_count
-            FROM conversations c
-            JOIN conversation_participants cp ON c.id = cp.conversation_id
-            WHERE cp.user_id = ?
-            ORDER BY c.created_at DESC
-        """, (user[0],)).fetchall()
+        
+        users = cursor.execute("""
+            SELECT id, firstName, lastName, email FROM users WHERE isActive = 1
+        """).fetchall()
         
         return jsonify(conversations=[{
-            'id': c[0],
-            'name': c[1],
-            'created_at': c[2],
-            'message_count': c[3]
-        } for c in conversations])
+            'id': u[0],
+            'name': f"{u[1]} {u[2]}",
+            'email': u[3]
+        } for u in users])
         
     except sqlite3.Error as e:
         return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
@@ -161,6 +220,41 @@ def get_messages(conversation_id):
         return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
     finally:
         connection.close()
+@app.route('/conversations/<conversation_id>/messages', methods=['POST'])
+def create_message(conversation_id):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak autoryzacji"), 401
+    token = auth_header.split()[1]
+
+    content = request.json.get('content')
+    if not content:
+        return jsonify(message="Brak treści wiadomości"), 400
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
+        if not user:
+            return jsonify(message="Nieprawidłowy token"), 401
+
+        cursor.execute("""
+            INSERT INTO messages (user_id, conversation_id, content, timestamp)
+            VALUES (?, ?, ?, ?)
+        """, (
+            user[0],
+            conversation_id,
+            content,
+            datetime.now().isoformat()
+        ))
+        connection.commit()
+        new_message_id = cursor.lastrowid
+    except sqlite3.Error as e:
+        return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
+    finally:
+        connection.close()
+
+    return jsonify(message_id=new_message_id, content=content, conversation_id=conversation_id)
 
 @app.route('/conversations', methods=['POST'])
 def create_conversation():
@@ -204,5 +298,4 @@ def create_conversation():
         
 if __name__ == '__main__':
     # app.run(debug=True, port=3000, host='0.0.0.0')
-    # socketio.run(app, debug=True, port=3001, host='0.0.0.0',allow_unsafe_werkzeug=True)
     socketio.run(app, debug=True, port=3000, host='0.0.0.0')

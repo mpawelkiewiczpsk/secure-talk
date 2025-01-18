@@ -4,7 +4,7 @@ import {
   TextInput, StyleSheet, ActivityIndicator 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { initializeSocket } from '../../../services/chatService';
+import * as ChatService from '../../../services/chatService';
 
 export default function ChatListScreen({ navigation }) {
   const [conversations, setConversations] = useState([]);
@@ -13,64 +13,30 @@ export default function ChatListScreen({ navigation }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    let socket;
-    
-    const setupSocket = async () => {
-      socket = await initializeSocket();
-      
-      socket.on('message', (data) => {
-        setConversations(prev => {
-          const updated = [...prev];
-          const conversationIndex = updated.findIndex(
-            conv => conv.id === data.sender.user_id
-          );
-          
-          if (conversationIndex !== -1) {
-            updated[conversationIndex].lastMessage = data.content;
-            updated[conversationIndex].timestamp = new Date().toLocaleTimeString();
-            updated[conversationIndex].unread = true;
-          } else {
-            updated.push({
-              id: data.sender.user_id,
-              name: data.sender.name,
-              lastMessage: data.content,
-              timestamp: new Date().toLocaleTimeString(),
-              unread: true
-            });
-          }
-          return updated;
-        });
-        setUnreadCount(prev => prev + 1);
-      });
-
-      socket.on('user_connected', (data) => {
-        console.log('User connected:', data.user.name);
-      });
-
-      setLoading(false);
+    const fetchConversations = async () => {
+      try {
+        const data = await ChatService.getConversations();
+        setConversations(data);
+      } catch (error) {
+        Alert.alert('Błąd', 'Nie udało się pobrać rozmów');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setupSocket();
-    return () => socket?.disconnect();
+    fetchConversations();
   }, []);
+
 
   const filteredConversations = conversations.filter(conv => 
     conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.chatItem}
       onPress={() => {
-        if (item.unread) {
-          setUnreadCount(prev => prev - 1);
-          setConversations(prev =>
-            prev.map(conv =>
-              conv.id === item.id ? { ...conv, unread: false } : conv
-            )
-          );
-        }
         navigation.navigate('ChatConversation', { 
           conversationId: item.id,
           userName: item.name 
@@ -79,12 +45,9 @@ export default function ChatListScreen({ navigation }) {
     >
       <View style={styles.chatItemContent}>
         <Text style={styles.chatName}>{item.name}</Text>
-        <Text style={styles.timestamp}>{item.timestamp}</Text>
+        <Text style={styles.email}>{item.email}</Text>
       </View>
-      <View style={styles.messageContainer}>
-        <Text style={styles.lastMessage}>{item.lastMessage}</Text>
-        {item.unread && <View style={styles.unreadBadge} />}
-      </View>
+      {}
     </TouchableOpacity>
   );
 
@@ -106,7 +69,7 @@ export default function ChatListScreen({ navigation }) {
 
       <FlatList
         data={filteredConversations}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
       />
 
@@ -149,7 +112,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   chatItemContent: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'space-between',
     marginBottom: 5,
   },
@@ -157,24 +120,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  timestamp: {
+  email: {
     fontSize: 12,
     color: '#666',
-  },
-  messageContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  lastMessage: {
-    flex: 1,
-    color: '#666',
-  },
-  unreadBadge: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#007AFF',
-    marginLeft: 10,
   },
   newChatButton: {
     position: 'absolute',

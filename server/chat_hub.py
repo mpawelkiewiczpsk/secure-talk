@@ -3,42 +3,32 @@ from flask import request
 import sqlite3
 from datetime import datetime
 
-socketio = SocketIO()
+socketio = SocketIO(cors_allowed_origins="*")
 connected_users = {}
 
 def init_socket(app):
     print("Socket.IO initializing...")
-   # socketio.init_app(app, cors_allowed_origins="*")
 
     @socketio.on('connect')
     def handle_connect():
         try:
-            print(f"Client connecting... SID: {request.sid}")
             token = request.args.get('token')
-            
             if not token or token == 'null':
-                print(f"Connection rejected - invalid token: {token}")
                 return False
-                
             if not verify_token(token):
-                print(f"Connection rejected - token verification failed")
                 return False
-                
             user_data = get_user_data(token)
             if not user_data:
-                print(f"Connection rejected - user not found")
                 return False
-                
             user_id = user_data[0]
             connected_users[request.sid] = {
                 'user_id': user_id,
                 'name': f"{user_data[1]} {user_data[2]}"
             }
-            print(f"User {connected_users[request.sid]['name']} connected")
+            print(f"[Socket connected] {connected_users[request.sid]['name']} SID:{request.sid}")
             return True
-            
         except Exception as e:
-            print(f"Connection error: {str(e)}")
+            print(f"[Socket error] {str(e)}")
             return False
 
     @socketio.on('disconnect')
@@ -84,15 +74,18 @@ def init_socket(app):
     def handle_message(data):
         try:
             if request.sid not in connected_users:
+                print("User not recognized in connected_users")
                 return
-                
+
             user = connected_users[request.sid]
             conversation_id = data.get('conversationId')
             content = data.get('content')
-            
+
             if not conversation_id or not content:
+                print("No conversationId or content")
                 return
-                
+
+            
             message = {
                 'user_id': user['user_id'],
                 'sender_name': user['name'],
@@ -100,11 +93,11 @@ def init_socket(app):
                 'timestamp': datetime.now().isoformat(),
                 'conversation_id': conversation_id
             }
-            
+
             save_message(message)
+
             emit('message', message, room=conversation_id)
             print(f"Message sent in conversation {conversation_id}")
-            
         except Exception as e:
             print(f"Message handling error: {str(e)}")
 
