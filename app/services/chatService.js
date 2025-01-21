@@ -1,9 +1,28 @@
 import io from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CryptoJS from 'crypto-js';
 
-const API_URL = 'http://192.168.1.107:3000';
-const SOCKET_URL = 'http://192.168.1.107:3000';
+const API_URL = 'http://10.0.0.2:3000';
+const SOCKET_URL = 'http://10.0.0.2:3000';
+const ENCRYPTION_KEY = 'your-encryption-key-here'; // Must be 256 bits (32 characters)
+
 let socket = null;
+
+const encrypt = (text) => {
+  let iv = CryptoJS.lib.WordArray.random(16);
+  let key = CryptoJS.enc.Utf8.parse(ENCRYPTION_KEY);
+  let encrypted = CryptoJS.AES.encrypt(text, key, { iv: iv }).toString();
+  return iv.toString() + ':' + encrypted;
+};
+
+const decrypt = (text) => {
+  let textParts = text.split(':');
+  let iv = CryptoJS.enc.Hex.parse(textParts.shift());
+  let encryptedText = textParts.join(':');
+  let key = CryptoJS.enc.Utf8.parse(ENCRYPTION_KEY);
+  let decrypted = CryptoJS.AES.decrypt(encryptedText, key, { iv: iv });
+  return decrypted.toString(CryptoJS.enc.Utf8);
+};
 
 export const getConversations = async () => {
   try {
@@ -31,7 +50,12 @@ export const getMessages = async (conversationId) => {
       }
     });
     if (!response.ok) throw new Error('Failed to fetch messages');
-    return await response.json();
+    const data = await response.json();
+    data.messages = data.messages.map(message => ({
+      ...message,
+      content: decrypt(message.content)
+    }));
+    return data;
   } catch (error) {
     console.error('Error fetching messages:', error);
     throw error;
@@ -76,6 +100,11 @@ export const initializeSocket = async () => {
     console.error('Socket connection error:', error);
   });
 
+  socket.on('message', (data) => {
+    const decryptedContent = decrypt(data.content);
+    console.log('Received decrypted message:', decryptedContent);
+    // Handle the decrypted content
+  });
 
   return socket;
 };
@@ -88,6 +117,7 @@ export const disconnectSocket = () => {
 
 export const createMessage = async (conversationId, content) => {
   try {
+    const encryptedContent = encrypt(content);
     const token = await AsyncStorage.getItem('userToken');
     const response = await fetch(`${API_URL}/conversations/${conversationId}/messages`, {
       method: 'POST',
@@ -95,13 +125,17 @@ export const createMessage = async (conversationId, content) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content: encryptedContent }),
     });
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to create message via endpoint');
     }
-    return await response.json();
+
+    const messageData = await response.json();
+    console.log('Message created:', messageData); // Log the created message data
+    
+    return messageData;
   } catch (error) {
     console.error('Error creating message:', error);
     throw error;
@@ -115,8 +149,17 @@ export const sendMessage = async (conversationId, content) => {
     console.error('Socket not connected');
     throw new Error('Socket not connected');
   }
-  console.log('Emitting send_message:', conversationId, content);
-  socket.emit('send_message', { conversationId, content });
+  const encryptedContent = encrypt(content);
+  console.log('Emitting send_message:', { conversationId, content: encryptedContent }); // Log the data being emitted
+  
+  // Log the current date for reference
+  const currentDate = new Date();
+  console.log('Current date:', currentDate);
+
+  // Additional log for message data
+  console.log('Message data before emitting:', messageData);
+
+  socket.emit('send_message', { conversationId, content: encryptedContent });
 
   return messageData;
 };

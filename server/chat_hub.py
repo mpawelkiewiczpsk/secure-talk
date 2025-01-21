@@ -31,15 +31,15 @@ def init_socket(app):
             print(f"[Socket error] {str(e)}")
             return False
 
-    @socketio.on('disconnect')
-    def handle_disconnect():
+@socketio.on('disconnect')
+def handle_disconnect():
         if request.sid in connected_users:
             user = connected_users[request.sid]
             print(f"User {user['name']} disconnected")
             del connected_users[request.sid]
 
-    @socketio.on('join_conversation')
-    def handle_join(data):
+@socketio.on('join_conversation')
+def handle_join(data):
         try:
             if request.sid not in connected_users:
                 return
@@ -54,8 +54,8 @@ def init_socket(app):
         except Exception as e:
             print(f"Join room error: {str(e)}")
 
-    @socketio.on('leave_conversation')
-    def handle_leave(data):
+@socketio.on('leave_conversation')
+def handle_leave(data):
         try:
             if request.sid not in connected_users:
                 return
@@ -70,8 +70,8 @@ def init_socket(app):
         except Exception as e:
             print(f"Leave room error: {str(e)}")
 
-    @socketio.on('send_message')
-    def handle_message(data):
+@socketio.on('send_message')
+def handle_message(data):
         try:
             if request.sid not in connected_users:
                 print("User not recognized in connected_users")
@@ -80,17 +80,16 @@ def init_socket(app):
             user = connected_users[request.sid]
             conversation_id = data.get('conversationId')
             content = data.get('content')
-
-            if not conversation_id or not content:
-                print("No conversationId or content")
+            timestamp = data.get('timestamp') 
+            if not conversation_id or not content or not timestamp:
+                print("No conversationId, content, or timestamp")
                 return
 
-            
             message = {
                 'user_id': user['user_id'],
                 'sender_name': user['name'],
                 'content': content,
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timestamp, # Używamy przesłanego znacznika czasowego
                 'conversation_id': conversation_id
             }
 
@@ -101,8 +100,8 @@ def init_socket(app):
         except Exception as e:
             print(f"Message handling error: {str(e)}")
 
-    @socketio.on_error_default
-    def default_error_handler(e):
+@socketio.on_error_default
+def default_error_handler(e):
         print(f"SocketIO error: {str(e)}")
         return False
 
