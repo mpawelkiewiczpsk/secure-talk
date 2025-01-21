@@ -4,22 +4,22 @@ import CryptoJS from 'crypto-js';
 
 const API_URL = 'http://10.0.0.2:3000';
 const SOCKET_URL = 'http://10.0.0.2:3000';
-const ENCRYPTION_KEY = 'your-encryption-key-here'; // Must be 256 bits (32 characters)
-
+const AES_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY;
 let socket = null;
 
 const encrypt = (text) => {
+
   let iv = CryptoJS.lib.WordArray.random(16);
-  let key = CryptoJS.enc.Utf8.parse(ENCRYPTION_KEY);
+  let key = CryptoJS.enc.Utf8.parse(AES_KEY);
   let encrypted = CryptoJS.AES.encrypt(text, key, { iv: iv }).toString();
   return iv.toString() + ':' + encrypted;
 };
 
-const decrypt = (text) => {
+const decrypt = (text) => { 
   let textParts = text.split(':');
   let iv = CryptoJS.enc.Hex.parse(textParts.shift());
   let encryptedText = textParts.join(':');
-  let key = CryptoJS.enc.Utf8.parse(ENCRYPTION_KEY);
+  let key = CryptoJS.enc.Utf8.parse(AES_KEY);
   let decrypted = CryptoJS.AES.decrypt(encryptedText, key, { iv: iv });
   return decrypted.toString(CryptoJS.enc.Utf8);
 };

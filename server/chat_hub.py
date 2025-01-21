@@ -9,8 +9,8 @@ connected_users = {}
 def init_socket(app):
     print("Socket.IO initializing...")
 
-    @socketio.on('connect')
-    def handle_connect():
+@socketio.on('connect')
+def handle_connect():
         try:
             token = request.args.get('token')
             if not token or token == 'null':
