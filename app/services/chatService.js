@@ -16,7 +16,7 @@ const encrypt = (text) => {
 };
 
 // Decryption function
-const decrypt = (text) => {
+export const decrypt = (text) => {
   let textParts = text.split(':'); 
   if (textParts.length !== 2) {
     throw new Error('Invalid encrypted text format');

@@ -92,8 +92,8 @@ export default function ChatConversationScreen({ route, navigation }) {
         id: messageData.message_id,
         user_id: currentUserId, 
         sender_name: userName,
-        content: messageData.content,
-        timestamp: messageData.timestamp,
+        content: ChatService.decrypt(messageData.content),
+        timestamp: new Date(),
         conversation_id: messageData.conversation_id
       };
   
