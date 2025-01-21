@@ -29,10 +29,16 @@ export default function TokenLoginScreen({ navigation }) {
   };
 
   const handleRequestNewToken = () => {
-    Alert.alert(
-      'Nowy token',
-      'Skontaktuj się z administratorem, aby uzyskać nowy token.'
-    );
+    if (Platform.OS === 'web') {
+      // Wersja webowa: Przechodzi do nowego ekranu w Stack Navigator
+      navigation.navigate('RegisterRequestScreen');
+    } else {
+      // Wersja mobilna: Wyświetla alert
+      Alert.alert(
+        'Nowy token',
+        'Skontaktuj się z administratorem, aby uzyskać nowy token.'
+      );
+    }
   };
 
   return (
