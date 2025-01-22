@@ -83,7 +83,9 @@ export default function ChatConversationScreen({ route, navigation }) {
     try {
       console.log('Sending:', conversationId, newMessage);
       const messageData = await ChatService.sendMessage(conversationId, newMessage);
-  
+      const token = await AsyncStorage.getItem('userToken');
+      const userData = await AuthService.checkTokenValidity(token);
+      const senderName = `${userData.userData.firstName} ${userData.userData.lastName}`;
      
       console.log('Received messageData:', messageData);
   
@@ -91,7 +93,7 @@ export default function ChatConversationScreen({ route, navigation }) {
       const newMsg = {
         id: messageData.message_id,
         user_id: currentUserId, 
-        sender_name: userName,
+        sender_name: senderName,
         content: ChatService.decrypt(messageData.content),
         timestamp: new Date(),
         conversation_id: messageData.conversation_id

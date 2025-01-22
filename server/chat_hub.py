@@ -89,7 +89,7 @@ def handle_message(data):
                 'user_id': user['user_id'],
                 'sender_name': user['name'],
                 'content': content,
-                'timestamp': timestamp, # Używamy przesłanego znacznika czasowego
+                'timestamp': timestamp, 
                 'conversation_id': conversation_id
             }
 

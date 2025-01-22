@@ -1,164 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, Text, FlatList, TouchableOpacity, 
-  TextInput, StyleSheet, ActivityIndicator 
+import {
+  View, Text, FlatList, TouchableOpacity,
+  TextInput, StyleSheet, ActivityIndicator, Alert
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import * as ChatService from '../../../services/chatService';
 
 export default function ChatListScreen({ navigation }) {
-  const [conversations, setConversations] = useState([]);
+  const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const fetchConversations = async () => {
+    const fetchUsers = async () => {
+      setLoading(true);
       try {
-        const data = await ChatService.getConversations();
-        setConversations(data);
+        const allUsers = await ChatService.getAllUsers();
+        setUsers(allUsers || []);
       } catch (error) {
-        Alert.alert('Błąd', 'Nie udało się pobrać rozmów');
+        console.error('Error fetching users:', error);
+        Alert.alert('Błąd', 'Nie udało się pobrać listy użytkowników');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchConversations();
+    fetchUsers();
   }, []);
 
+  const handleUserPress = async (recipientId) => {
+    try {
+      const result = await ChatService.createConversation(recipientId);
+      navigation.navigate('ChatConversation', {
+        conversationId: result.conversation_id,
+        userName: '', // Możesz przekazać tutaj imię
+      });
+    } catch (error) {
+      Alert.alert('Błąd', error.message);
+    }
+  };
 
-  const filteredConversations = conversations.filter(conv => 
-    conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.chatItem}
-      onPress={() => {
-        navigation.navigate('ChatConversation', { 
-          conversationId: item.id,
-          userName: item.name 
-        });
-      }}
-    >
-      <View style={styles.chatItemContent}>
-        <Text style={styles.chatName}>{item.name}</Text>
-        <Text style={styles.email}>{item.email}</Text>
-      </View>
-      {}
-    </TouchableOpacity>
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
-    return <ActivityIndicator style={styles.loader} />;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Szukaj w rozmowach..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      <FlatList
-        data={filteredConversations}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderItem}
+      <Text style={styles.header}>Wybierz użytkownika do rozmowy</Text>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Szukaj użytkowników..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
       />
-
-      <TouchableOpacity
-        style={styles.newChatButton}
-        onPress={() => navigation.navigate('NewChat')}
-      >
-        <Ionicons name="add" size={30} color="white" />
-      </TouchableOpacity>
-
-      {unreadCount > 0 && (
-        <View style={styles.unreadCountBadge}>
-          <Text style={styles.unreadCountText}>{unreadCount}</Text>
-        </View>
-      )}
+      <FlatList
+        data={filteredUsers}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.item} onPress={() => handleUserPress(item.id)}>
+            <Text style={styles.itemText}>{item.name}</Text>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={<Text style={styles.emptyText}>Brak wyników</Text>}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+  center: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  container: {
+    flex: 1, backgroundColor: '#f7f7f7', paddingHorizontal: 10, paddingTop: 10,
+  },
+  header: {
+    fontSize: 18, fontWeight: '600', marginBottom: 10, color: '#333',
   },
   searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
+    backgroundColor: '#fff', padding: 10, marginBottom: 10,
+    borderRadius: 8, borderWidth: 1, borderColor: '#ccc',
   },
-  chatItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  item: {
+    backgroundColor: '#fff', paddingVertical: 15, paddingHorizontal: 15,
+    borderBottomWidth: 1, borderBottomColor: '#ededed',
   },
-  chatItemContent: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    marginBottom: 5,
+  itemText: {
+    fontSize: 16, color: '#333',
   },
-  chatName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  email: {
-    fontSize: 12,
-    color: '#666',
-  },
-  newChatButton: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  unreadCountBadge: {
-    position: 'absolute',
-    right: 15,
-    top: 15,
-    backgroundColor: 'red',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadCountText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  emptyText: {
+    textAlign: 'center', color: '#888', marginTop: 20,
   },
 });
