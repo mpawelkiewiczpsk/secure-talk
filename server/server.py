@@ -266,6 +266,27 @@ def get_messages(conversation_id):
             ORDER BY m.timestamp DESC
             LIMIT 50
         """, (conversation_id,)).fetchall()
+
+        last_message = cursor.execute("""
+            SELECT id FROM messages 
+            WHERE conversation_id = ?
+            ORDER BY timestamp DESC 
+            LIMIT 1
+        """, (conversation_id,)).fetchone()
+
+        if last_message:
+            cursor.execute("""
+                INSERT INTO message_status (message_id, user_id, is_read)
+                SELECT ?, cp.user_id, 0
+                FROM conversation_participants cp
+                WHERE cp.conversation_id = ? 
+                AND cp.user_id = ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM message_status ms 
+                    WHERE ms.message_id = ? 
+                    AND ms.user_id = cp.user_id
+                )
+            """, (last_message[0], conversation_id, user[0], last_message[0]))
         
         return jsonify(messages=[{
             'id': m[0],
@@ -334,8 +355,23 @@ def create_message(conversation_id):
             content,
             datetime.now().isoformat()
         ))
-        connection.commit()
         new_message_id = cursor.lastrowid
+        
+        cursor.execute("""
+            INSERT INTO message_status (message_id, user_id, is_read)
+            SELECT ?, cp.user_id, 0
+            FROM conversation_participants cp
+            WHERE cp.conversation_id = ? 
+            AND cp.user_id != ?
+            AND NOT EXISTS (
+                SELECT 1 FROM message_status ms 
+                WHERE ms.message_id = ? 
+                AND ms.user_id = cp.user_id
+            )
+        """, (new_message_id, conversation_id, user[0], new_message_id))
+        
+        connection.commit()
+
     except sqlite3.Error as e:
         return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
     finally:
@@ -356,11 +392,11 @@ def get_unread_messages():
         user_id = user[0]
         
         cursor.execute("""
-            SELECT m.conversation_id, COUNT(*) as unread_count
+            SELECT m.user_id, COUNT(*) as unread_count
             FROM messages m
             JOIN message_status ms ON m.id = ms.message_id
             WHERE ms.user_id = ? AND ms.is_read = 0
-            GROUP BY m.conversation_id
+            GROUP BY m.user_id
         """, (user_id,))
         
         unread_counts = {row[0]: row[1] for row in cursor.fetchall()}

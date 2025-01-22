@@ -4,6 +4,7 @@ import {
   TextInput, StyleSheet, ActivityIndicator, Alert
 } from 'react-native';
 import * as ChatService from '../../../services/chatService';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ChatListScreen({ navigation }) {
   const [users, setUsers] = useState([]);
@@ -21,6 +22,7 @@ export default function ChatListScreen({ navigation }) {
         ]);
         setUsers(allUsers || []);
         setUnreadCounts(unreadMessages || {});
+        console.log('Fetched unread counts:', unreadMessages);
       } catch (error) {
         console.error('Error:', error);
         Alert.alert('Błąd', 'Nie udało się pobrać danych');
@@ -30,21 +32,22 @@ export default function ChatListScreen({ navigation }) {
     };
     fetchData();
   }, []);
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.userItem} 
-      onPress={() => {
-        navigation.navigate('Chat', { userId: item.id });
-        ChatService.markConversationAsRead(item.id);
-      }}>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.name}</Text>
-        {unreadCounts[item.id] > 0 && (
-          <View style={styles.unreadDot} />
-        )}
-      </View>
-    </TouchableOpacity>
+
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchUnreadCounts = async () => {
+        try {
+          await ChatService.getUnreadMessagesCount();
+        } catch (error) {
+          console.error('Error updating unread count:', error);
+        }
+      };
+      
+      fetchUnreadCounts();
+    }, [])
   );
+
   const handleUserPress = async (recipientId) => {
     try {
       const result = await ChatService.createConversation(recipientId);
@@ -78,15 +81,25 @@ export default function ChatListScreen({ navigation }) {
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
-      <FlatList
-        data={filteredUsers}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.item} onPress={() => handleUserPress(item.id)}>
-            <Text style={styles.itemText}>{item.name}</Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={<Text style={styles.emptyText}>Brak wyników</Text>}
+    <FlatList
+  data={filteredUsers}
+  keyExtractor={(item) => item.id.toString()}
+  renderItem={({ item }) => (
+    <TouchableOpacity style={styles.item} onPress={() => handleUserPress(item.id)}>
+      <View style={styles.userInfo}>
+        <Text style={styles.itemText}>{item.name}</Text>
+        <View style={styles.unreadContainer}>
+          {unreadCounts[item.id] > 0 && (
+            <>
+              <Text style={styles.unreadText}>nieodczytane: {unreadCounts[item.id]}</Text>
+              <View style={styles.unreadDot} />
+            </>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  )}
+  ListEmptyComponent={<Text style={styles.emptyText}>Brak wyników</Text>}
       />
     </View>
   );
@@ -116,15 +129,25 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center', color: '#888', marginTop: 20,
   },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%'
+  },
+  unreadContainer: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  unreadText: {
+    fontSize: 12,
+    color: '#666',
+    marginRight: 5
+  },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'red',
-    marginLeft: 8
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center'
+    backgroundColor: 'red'
   }
 });
