@@ -57,12 +57,24 @@ def initialize_database():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
                 conversation_id INTEGER,
+                user_id INTEGER,
                 content TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
+                read_by_sender INTEGER DEFAULT 1,
+                read_by_receiver INTEGER DEFAULT 0,
+                FOREIGN KEY(conversation_id) REFERENCES conversations(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS message_status (
+                message_id INTEGER,
+                user_id INTEGER,
+                is_read INTEGER DEFAULT 0,
+                FOREIGN KEY(message_id) REFERENCES messages(id),
                 FOREIGN KEY(user_id) REFERENCES users(id),
-                FOREIGN KEY(conversation_id) REFERENCES conversations(id)
+                PRIMARY KEY (message_id, user_id)
             )
         """)
         
@@ -204,14 +216,12 @@ def get_all_users():
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
-        # Pobierz aktualnie zalogowanego użytkownika
         cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
         current_user_row = cursor.fetchone()
         if not current_user_row:
             return jsonify(message="Token nieważny"), 401
         current_user_id = current_user_row[0]
-
-        # Pobierz wszystkich użytkowników oprócz aktualnie zalogowanego (zakładając, że mamy kolumny firstname, lastname)
+        
         cursor.execute("""
             SELECT id, firstname, lastname
             FROM users
@@ -269,6 +279,34 @@ def get_messages(conversation_id):
         return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
     finally:
         connection.close()
+        
+ 
+@app.route('/conversations/<conversation_id>/messages/read', methods=['POST'])
+def mark_messages_read(conversation_id):
+    auth_header = request.headers.get('Authorization')
+    token = auth_header.split()[1]
+    
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    
+    try:
+        
+        user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
+        user_id = user[0]
+        
+        
+        cursor.execute("""
+            INSERT OR REPLACE INTO message_status (message_id, user_id, is_read)
+            SELECT id, ?, 1
+            FROM messages 
+            WHERE conversation_id = ? AND user_id != ?
+        """, (user_id, conversation_id, user_id))
+        
+        connection.commit()
+        return jsonify({'success': True})
+    finally:
+        connection.close()
+        
 @app.route('/conversations/<conversation_id>/messages', methods=['POST'])
 def create_message(conversation_id):
     auth_header = request.headers.get('Authorization')
@@ -305,6 +343,31 @@ def create_message(conversation_id):
 
     return jsonify(message_id=new_message_id, content=content, conversation_id=conversation_id)
 
+@app.route('/unread-messages', methods=['GET'])
+def get_unread_messages():
+    auth_header = request.headers.get('Authorization')
+    token = auth_header.split()[1]
+    
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    
+    try:
+        user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
+        user_id = user[0]
+        
+        cursor.execute("""
+            SELECT m.conversation_id, COUNT(*) as unread_count
+            FROM messages m
+            JOIN message_status ms ON m.id = ms.message_id
+            WHERE ms.user_id = ? AND ms.is_read = 0
+            GROUP BY m.conversation_id
+        """, (user_id,))
+        
+        unread_counts = {row[0]: row[1] for row in cursor.fetchall()}
+        return jsonify({'unreadCounts': unread_counts})
+    finally:
+        connection.close()
+        
 @app.route('/conversations', methods=['POST'])
 def create_conversation():
     auth_header = request.headers.get('Authorization')
@@ -319,14 +382,14 @@ def create_conversation():
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
-        # Pobierz zalogowanego usera z tokenu
+        
         cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
         sender_row = cursor.fetchone()
         if not sender_row:
             return jsonify(message="Nieprawidłowy token"), 401
         sender_id = sender_row[0]
 
-        # Odbiorca
+        
         cursor.execute("SELECT id FROM users WHERE id = ?", (recipient_id,))
         recipient_row = cursor.fetchone()
         if not recipient_row:
@@ -335,7 +398,7 @@ def create_conversation():
         if sender_id == recipient_id:
             return jsonify(message="Nie możesz rozpocząć czatu z samym sobą"), 400
 
-        # Sprawdź czy konwersacja już istnieje
+       
         cursor.execute("""
             SELECT c.id
             FROM conversation_participants cp1
@@ -347,7 +410,7 @@ def create_conversation():
         if existing_conv:
             return jsonify(conversation_id=existing_conv[0], message="Konwersacja już istnieje"), 200
 
-        # Twórz nową konwersację
+        
         now = datetime.utcnow().isoformat()
         cursor.execute("INSERT INTO conversations (name, created_at) VALUES (?, ?)", ("", now))
         conversation_id = cursor.lastrowid

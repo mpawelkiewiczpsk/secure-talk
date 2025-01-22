@@ -26,30 +26,28 @@ export default function ChatConversationScreen({ route, navigation }) {
       try {
         const token = await AsyncStorage.getItem('userToken');
         const userData = await AuthService.checkTokenValidity(token);
-        console.log('User Data:', userData); 
         if (!userData.valid) {
           throw new Error('Invalid token');
         }
         setCurrentUserId(userData.userData.id);
-        console.log('Current User ID set to:', userData.userData.id); 
         
-       
+        // Mark messages as read when entering conversation
+        await ChatService.markConversationAsRead(conversationId);
+        
         const socketInstance = await ChatService.initializeSocket();
         setSocket(socketInstance);
-  
+
         socketInstance.on('connect', () => {
           console.log('Socket connected');
           socketInstance.emit('join_conversation', { conversationId });
         });
-  
+
         socketInstance.on('message', handleNewMessage);
         socketInstance.on('connect_error', (err) => {
           console.error('Socket connection error:', err);
         });
-  
-       
+
         const fetchedMessages = await ChatService.getMessages(conversationId);
-        console.log('Fetched Messages:', fetchedMessages); 
         setMessages(fetchedMessages.messages);
       } catch (err) {
         console.error('[Initialization error]', err);
@@ -58,7 +56,7 @@ export default function ChatConversationScreen({ route, navigation }) {
         setIsLoading(false);
       }
     };
-  
+
     initialize();
   
     return () => {

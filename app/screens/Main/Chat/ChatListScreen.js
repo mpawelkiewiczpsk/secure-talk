@@ -8,30 +8,49 @@ import * as ChatService from '../../../services/chatService';
 export default function ChatListScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const allUsers = await ChatService.getAllUsers();
+        const [allUsers, unreadMessages] = await Promise.all([
+          ChatService.getAllUsers(),
+          ChatService.getUnreadMessagesCount()
+        ]);
         setUsers(allUsers || []);
+        setUnreadCounts(unreadMessages || {});
       } catch (error) {
-        console.error('Error fetching users:', error);
-        Alert.alert('Błąd', 'Nie udało się pobrać listy użytkowników');
+        console.error('Error:', error);
+        Alert.alert('Błąd', 'Nie udało się pobrać danych');
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
+    fetchData();
   }, []);
-
+  const renderItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.userItem} 
+      onPress={() => {
+        navigation.navigate('Chat', { userId: item.id });
+        ChatService.markConversationAsRead(item.id);
+      }}>
+      <View style={styles.userInfo}>
+        <Text style={styles.userName}>{item.name}</Text>
+        {unreadCounts[item.id] > 0 && (
+          <View style={styles.unreadDot} />
+        )}
+      </View>
+    </TouchableOpacity>
+  );
   const handleUserPress = async (recipientId) => {
     try {
       const result = await ChatService.createConversation(recipientId);
       navigation.navigate('ChatConversation', {
         conversationId: result.conversation_id,
-        userName: '', // Możesz przekazać tutaj imię
+        userName: '', 
       });
     } catch (error) {
       Alert.alert('Błąd', error.message);
@@ -97,4 +116,15 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center', color: '#888', marginTop: 20,
   },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'red',
+    marginLeft: 8
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  }
 });

@@ -72,33 +72,50 @@ def handle_leave(data):
 
 @socketio.on('send_message')
 def handle_message(data):
-        try:
-            if request.sid not in connected_users:
-                print("User not recognized in connected_users")
-                return
+    try:
+        user_id = connected_users[request.sid]['user_id']
+        conversation_id = data['conversationId']
+        content = data['content']
+        timestamp = datetime.now().isoformat()
 
-            user = connected_users[request.sid]
-            conversation_id = data.get('conversationId')
-            content = data.get('content')
-            timestamp = data.get('timestamp') 
-            if not conversation_id or not content or not timestamp:
-                print("No conversationId, content, or timestamp")
-                return
+        connection = sqlite3.connect('mydatabase.sqlite')
+        cursor = connection.cursor()
 
-            message = {
-                'user_id': user['user_id'],
-                'sender_name': user['name'],
-                'content': content,
-                'timestamp': timestamp, 
-                'conversation_id': conversation_id
-            }
+        # Insert message
+        cursor.execute("""
+            INSERT INTO messages (conversation_id, user_id, content, timestamp)
+            VALUES (?, ?, ?, ?)
+        """, (conversation_id, user_id, content, timestamp))
+        message_id = cursor.lastrowid
 
-            save_message(message)
+        # Get other participants
+        cursor.execute("""
+            SELECT user_id FROM conversation_participants 
+            WHERE conversation_id = ? AND user_id != ?
+        """, (conversation_id, user_id))
+        
+        participants = cursor.fetchall()
+        
+        # Insert unread status for all participants
+        for participant in participants:
+            cursor.execute("""
+                INSERT INTO message_status (message_id, user_id, is_read)
+                VALUES (?, ?, 0)
+            """, (message_id, participant[0]))
 
-            emit('message', message, room=conversation_id)
-            print(f"Message sent in conversation {conversation_id}")
-        except Exception as e:
-            print(f"Message handling error: {str(e)}")
+        connection.commit()
+        connection.close()
+
+        # Emit to room
+        emit('message', {
+            'user_id': user_id,
+            'conversation_id': conversation_id,
+            'content': content,
+            'timestamp': timestamp
+        }, room=f"conversation_{conversation_id}")
+        
+    except Exception as e:
+        print(f"Error handling message: {str(e)}")
 
 @socketio.on_error_default
 def default_error_handler(e):

@@ -26,6 +26,38 @@ export const decrypt = (text) => {
   return decrypted.toString(CryptoJS.enc.Utf8);
 };
 
+export const markConversationAsRead = async (conversationId) => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/messages/read`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) throw new Error("Failed to mark messages as read");
+    return await response.json();
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    throw error;
+  }
+};
+export const getUnreadMessagesCount = async () => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(`${API_URL}/unread-messages`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) throw new Error("Failed to fetch unread messages");
+    const data = await response.json();
+    return data.unreadCounts;
+  } catch (error) {
+    console.error("Error fetching unread messages:", error);
+    throw error;
+  }
+};
 export const getConversations = async () => {
   try {
     const token = await AsyncStorage.getItem("userToken");
