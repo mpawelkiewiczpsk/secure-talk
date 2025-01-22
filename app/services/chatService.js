@@ -29,12 +29,15 @@ export const decrypt = (text) => {
 export const markConversationAsRead = async (conversationId) => {
   try {
     const token = await AsyncStorage.getItem("userToken");
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/messages/read`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/messages/read`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     if (!response.ok) throw new Error("Failed to mark messages as read");
     return await response.json();
   } catch (error) {
@@ -133,7 +136,6 @@ export const createConversation = async (recipientId) => {
       const errorData = await response.json();
       throw new Error(errorData.message || "Failed to create conversation");
     }
-    // e.g. { conversation_id: ..., message: "Nowa konwersacja utworzona" }
     return await response.json();
   } catch (error) {
     console.error("Error creating conversation:", error);
