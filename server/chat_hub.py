@@ -9,8 +9,8 @@ connected_users = {}
 def init_socket(app):
     print("Socket.IO initializing...")
 
-    @socketio.on('connect')
-    def handle_connect():
+@socketio.on('connect')
+def handle_connect():
         try:
             token = request.args.get('token')
             if not token or token == 'null':
@@ -31,15 +31,15 @@ def init_socket(app):
             print(f"[Socket error] {str(e)}")
             return False
 
-    @socketio.on('disconnect')
-    def handle_disconnect():
+@socketio.on('disconnect')
+def handle_disconnect():
         if request.sid in connected_users:
             user = connected_users[request.sid]
             print(f"User {user['name']} disconnected")
             del connected_users[request.sid]
 
-    @socketio.on('join_conversation')
-    def handle_join(data):
+@socketio.on('join_conversation')
+def handle_join(data):
         try:
             if request.sid not in connected_users:
                 return
@@ -54,8 +54,8 @@ def init_socket(app):
         except Exception as e:
             print(f"Join room error: {str(e)}")
 
-    @socketio.on('leave_conversation')
-    def handle_leave(data):
+@socketio.on('leave_conversation')
+def handle_leave(data):
         try:
             if request.sid not in connected_users:
                 return
@@ -70,39 +70,55 @@ def init_socket(app):
         except Exception as e:
             print(f"Leave room error: {str(e)}")
 
-    @socketio.on('send_message')
-    def handle_message(data):
-        try:
-            if request.sid not in connected_users:
-                print("User not recognized in connected_users")
-                return
+@socketio.on('send_message')
+def handle_message(data):
+    try:
+        user_id = connected_users[request.sid]['user_id']
+        conversation_id = data['conversationId']
+        content = data['content']
+        timestamp = datetime.now().isoformat()
 
-            user = connected_users[request.sid]
-            conversation_id = data.get('conversationId')
-            content = data.get('content')
+        connection = sqlite3.connect('mydatabase.sqlite')
+        cursor = connection.cursor()
 
-            if not conversation_id or not content:
-                print("No conversationId or content")
-                return
+        # Insert message
+        cursor.execute("""
+            INSERT INTO messages (conversation_id, user_id, content, timestamp)
+            VALUES (?, ?, ?, ?)
+        """, (conversation_id, user_id, content, timestamp))
+        message_id = cursor.lastrowid
 
-            
-            message = {
-                'user_id': user['user_id'],
-                'sender_name': user['name'],
-                'content': content,
-                'timestamp': datetime.now().isoformat(),
-                'conversation_id': conversation_id
-            }
+        # Get other participants
+        cursor.execute("""
+            SELECT user_id FROM conversation_participants 
+            WHERE conversation_id = ? AND user_id != ?
+        """, (conversation_id, user_id))
+        
+        participants = cursor.fetchall()
+        
+        # Insert unread status for all participants
+        for participant in participants:
+            cursor.execute("""
+                INSERT INTO message_status (message_id, user_id, is_read)
+                VALUES (?, ?, 0)
+            """, (message_id, participant[0]))
 
-            save_message(message)
+        connection.commit()
+        connection.close()
 
-            emit('message', message, room=conversation_id)
-            print(f"Message sent in conversation {conversation_id}")
-        except Exception as e:
-            print(f"Message handling error: {str(e)}")
+        # Emit to room
+        emit('message', {
+            'user_id': user_id,
+            'conversation_id': conversation_id,
+            'content': content,
+            'timestamp': timestamp
+        }, room=f"conversation_{conversation_id}")
+        
+    except Exception as e:
+        print(f"Error handling message: {str(e)}")
 
-    @socketio.on_error_default
-    def default_error_handler(e):
+@socketio.on_error_default
+def default_error_handler(e):
         print(f"SocketIO error: {str(e)}")
         return False
 

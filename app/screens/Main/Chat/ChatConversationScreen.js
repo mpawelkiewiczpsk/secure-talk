@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   FlatList,
@@ -6,105 +6,119 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as ChatService from '../../../services/chatService';
-import MessageBubble from '../../../components/MessageBubble';
-import * as AuthService from '../../../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as ChatService from "../../../services/chatService";
+import MessageBubble from "../../../components/MessageBubble";
+import * as AuthService from "../../../services/authService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function ChatConversationScreen({ route, navigation }) {
   const { conversationId, userName } = route.params;
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [socket, setSocket] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
+  useFocusEffect(
+    React.useCallback(() => {
+      const markAsRead = async () => {
+        try {
+          await ChatService.markConversationAsRead(conversationId);
+        } catch (error) {
+          console.error('Error marking conversation as read:', error);
+        }
+      };
+      markAsRead();
+    }, [conversationId])
+  );
   useEffect(() => {
     const initialize = async () => {
       try {
-        const token = await AsyncStorage.getItem('userToken');
+        const token = await AsyncStorage.getItem("userToken");
         const userData = await AuthService.checkTokenValidity(token);
-        console.log('User Data:', userData); 
         if (!userData.valid) {
-          throw new Error('Invalid token');
+          throw new Error("Invalid token");
         }
         setCurrentUserId(userData.userData.id);
-        console.log('Current User ID set to:', userData.userData.id); 
-        
-       
+
+        await ChatService.markConversationAsRead(conversationId);
+
         const socketInstance = await ChatService.initializeSocket();
         setSocket(socketInstance);
-  
-        socketInstance.on('connect', () => {
-          console.log('Socket connected');
-          socketInstance.emit('join_conversation', { conversationId });
+
+        socketInstance.on("connect", () => {
+          console.log("Socket connected");
+          socketInstance.emit("join_conversation", { conversationId });
         });
-  
-        socketInstance.on('message', handleNewMessage);
-        socketInstance.on('connect_error', (err) => {
-          console.error('Socket connection error:', err);
+
+        socketInstance.on("message", handleNewMessage);
+        socketInstance.on("connect_error", (err) => {
+          console.error("Socket connection error:", err);
         });
-  
-       
+
         const fetchedMessages = await ChatService.getMessages(conversationId);
-        console.log('Fetched Messages:', fetchedMessages); 
         setMessages(fetchedMessages.messages);
       } catch (err) {
-        console.error('[Initialization error]', err);
-        Alert.alert('Błąd', 'Nie udało się zainicjalizować czatu');
+        console.error("[Initialization error]", err);
+        Alert.alert("Błąd", "Nie udało się zainicjalizować czatu");
       } finally {
         setIsLoading(false);
       }
     };
-  
+
     initialize();
-  
+
     return () => {
       if (socket) {
-        socket.off('message', handleNewMessage);
-        socket.emit('leave_conversation', { conversationId });
+        socket.off("message", handleNewMessage);
+        socket.emit("leave_conversation", { conversationId });
         socket.disconnect();
       }
     };
   }, [conversationId]);
 
   const handleNewMessage = (newMsg) => {
-    console.log('Received new message:', newMsg);
+    console.log("Received new message:", newMsg);
     setMessages((prev) => [newMsg, ...prev]);
   };
-
+ 
+  
   const sendMessage = async () => {
     if (!newMessage.trim() || !socket) {
-      console.log('sendMessage aborted: Empty message or no socket');
+      console.log("sendMessage aborted: Empty message or no socket");
       return;
     }
     try {
-      console.log('Sending:', conversationId, newMessage);
-      const messageData = await ChatService.sendMessage(conversationId, newMessage);
-  
-     
-      console.log('Received messageData:', messageData);
-  
-     
+      console.log("Sending:", conversationId, newMessage);
+      const messageData = await ChatService.sendMessage(
+        conversationId,
+        newMessage
+      );
+      const token = await AsyncStorage.getItem("userToken");
+      const userData = await AuthService.checkTokenValidity(token);
+      const senderName = `${userData.userData.firstName} ${userData.userData.lastName}`;
+
+      console.log("Received messageData:", messageData);
+
       const newMsg = {
         id: messageData.message_id,
-        user_id: currentUserId, 
-        sender_name: userName,
-        content: messageData.content,
-        timestamp: messageData.timestamp,
-        conversation_id: messageData.conversation_id
+        user_id: currentUserId,
+        sender_name: senderName,
+        content: ChatService.decrypt(messageData.content),
+        timestamp: new Date(),
+        conversation_id: messageData.conversation_id,
       };
-  
-     
-      console.log('New message object added:', newMsg);
-  
+
+      console.log("New message object added:", newMsg);
+
       setMessages((prev) => [newMsg, ...prev]);
-      setNewMessage('');
+      setNewMessage("");
     } catch (err) {
-      console.error('Sending message failed:', err);
-      Alert.alert('Błąd', 'Nie udało się wysłać wiadomości');
+      console.error("Sending message failed:", err);
+      Alert.alert("Błąd", "Nie udało się wysłać wiadomości");
     }
   };
   if (isLoading) {
@@ -121,10 +135,7 @@ export default function ChatConversationScreen({ route, navigation }) {
         style={styles.messageList}
         data={messages}
         renderItem={({ item }) => (
-          <MessageBubble
-            message={item}
-            currentUserId={currentUserId}
-          />
+          <MessageBubble message={item} currentUserId={currentUserId} />
         )}
         keyExtractor={(item) => item.id.toString()}
         inverted={true}
@@ -156,24 +167,24 @@ export default function ChatConversationScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   center: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   messageList: {
     flex: 1,
     padding: 10,
   },
   inputContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: '#fff',
-    alignItems: 'center',
+    borderTopColor: "#eee",
+    backgroundColor: "#fff",
+    alignItems: "center",
   },
   input: {
     flex: 1,
@@ -181,14 +192,14 @@ const styles = StyleSheet.create({
     padding: 10,
     maxHeight: 100,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 20,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: "#f8f8f8",
   },
   sendButton: {
     width: 44,
     height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
