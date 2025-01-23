@@ -462,6 +462,13 @@ def create_conversation():
         return jsonify(message=f"Błąd bazy danych: {e}"), 500
     finally:
         connection.close()
+
+@app.route('/lista', methods=['GET'])
+def get_list():
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    user = cursor.execute("SELECT * FROM users").fetchall()
+    return user
         
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=3000, host='0.0.0.0')
