@@ -25,6 +25,8 @@ def handle_connect():
                 'user_id': user_id,
                 'name': f"{user_data[1]} {user_data[2]}"
             }
+
+            join_room('group_chat')
             print(f"[Socket connected] {connected_users[request.sid]['name']} SID:{request.sid}")
             return True
         except Exception as e:
@@ -174,3 +176,67 @@ def save_message(message):
         print(f"Database error in save_message: {str(e)}")
     finally:
         connection.close()
+
+@socketio.on('send_group_message')
+def handle_group_message(data):
+    try:
+        user_id = connected_users[request.sid]['user_id']
+        conversation_id = data.get('conversationId', 'group')  # Domyślna wartość 'group'
+        content = data['content']
+        timestamp = datetime.now().isoformat()
+
+        connection = sqlite3.connect('mydatabase.sqlite')
+        cursor = connection.cursor()
+
+        # Insert message
+        cursor.execute("""
+            INSERT INTO messages (conversation_id, user_id, content, timestamp)
+            VALUES (?, ?, ?, ?)
+        """, (conversation_id, user_id, content, timestamp))
+        connection.commit()
+        connection.close()
+
+        # Emit to room
+        room = f"group_chat" if conversation_id == 'group' else f"conversation_{conversation_id}"
+        emit('message', {
+            'user_id': user_id,
+            'conversation_id': conversation_id,
+            'content': content,
+            'timestamp': timestamp
+        }, room=room)
+
+    except Exception as e:
+        print(f"Error handling message: {str(e)}")
+
+
+@socketio.on('get_group_messages')
+def get_group_messages():
+    try:
+        connection = sqlite3.connect('mydatabase.sqlite')
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT messages.id, messages.user_id, users.firstName || ' ' || users.lastName AS sender_name, 
+                   messages.content, messages.timestamp
+            FROM messages
+            JOIN users ON messages.user_id = users.id
+            WHERE messages.conversation_id = 'group'
+            ORDER BY messages.timestamp ASC
+        """)
+        messages = cursor.fetchall()
+        connection.close()
+
+        messages_data = [
+            {
+                'id': msg[0],
+                'user_id': msg[1],
+                'sender_name': msg[2],
+                'content': msg[3],
+                'timestamp': msg[4]
+            }
+            for msg in messages
+        ]
+
+        emit('group_messages', messages_data)
+    except Exception as e:
+        print(f"Error fetching group messages: {str(e)}")
