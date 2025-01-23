@@ -8,7 +8,7 @@ const Stack = createNativeStackNavigator();
 
 export default function AuthNavigator() {
   return (
-    <Stack.Navigator initialRouteName="RegisterRequest">
+    <Stack.Navigator initialRouteName="TokenLogin">
       <Stack.Screen
         name="TokenLogin"
         component={TokenLoginScreen}

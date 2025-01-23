@@ -35,11 +35,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# admin-panel
-
-admin-panel/.expo/
-admin-panel/node_modules/
-
 #server
 
 server/__pycache__/

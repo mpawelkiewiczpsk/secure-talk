@@ -7,7 +7,7 @@ import { StyleSheet, View, Text, ScrollView, Button, Alert } from 'react-native'
 const API_URL = 'http://localhost:3000';
 const ADMIN_TOKEN = '6b66df5b-d7e5-479b-bc8d-278b924ed8e4';
 
-export default function App() {
+export default function WebApp() {
   const [users, setUsers] = useState([]);
   const [message, setMessage] = useState('');
 
@@ -53,12 +53,44 @@ export default function App() {
       }
 
       // Odśwież listę użytkowników po wygenerowaniu tokenu
-      fetchUsers();
+      await fetchUsers();
     } catch (err) {
       console.error('Błąd generowania tokenu:', err.message);
       setMessage('Nie udało się wygenerować tokenu.');
     }
   };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      await axios.delete(`${API_URL}/delete-user/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${ADMIN_TOKEN}`,
+        },
+      });
+      Alert.alert('Sukces', 'Pomyślnie usunięto użytkownika');
+      setMessage('Użytkownik został pomyślnie usunięty');
+      await fetchUsers();
+    } catch (err) {
+      console.error('Błąd usuwania użytkownika:', err.message);
+      setMessage('Nie udało się usunąć użytkownika');
+    }
+  };
+
+  const handleDeactivateUser = async (userId) => {
+    try {
+      await axios.put(`${API_URL}/deactivate-user/${userId}`, null, {
+        headers: {
+          Authorization: `Bearer ${ADMIN_TOKEN}`,
+        },
+      });
+      Alert.alert('Sukces', 'Pomyślnie dezaktywowano użytkownika');
+      setMessage('Użytkownik został pomyślnie dezaktywowany');
+      await fetchUsers();
+    } catch (err) {
+      console.error('Błąd dezaktywacji użytkownika:', err.message);
+      setMessage('Nie udało się dezaktywować użytkownika');
+    }
+  }
 
   return (
     <LinearGradient
@@ -75,20 +107,38 @@ export default function App() {
 
         <View style={styles.table}>
           <View style={[styles.tableRow, styles.tableHeader]}>
-            <Text style={styles.tableCell}>ID</Text>
-            <Text style={styles.tableCell}>Imię i nazwisko</Text>
-            <Text style={styles.tableCell}>Akcje</Text>
+            <Text style={styles.headerCell}>ID</Text>
+            <Text style={styles.headerCell}>Imię i nazwisko</Text>
+            <Text style={styles.headerCell}>Czy aktywny?</Text>
+            <Text style={styles.headerCell}>Generowanie tokenu</Text>
+            <Text style={styles.headerCell}>Dezaktywowanie użytkownika</Text>
+            <Text style={styles.headerCell}>Usuwanie użytkownika</Text>
           </View>
 
           {users.map((u) => (
             <View style={styles.tableRow} key={u.id}>
               <Text style={styles.tableCell}>{u.id}</Text>
               <Text style={styles.tableCell}>{u.name}</Text>
+              <Text style={styles.tableCell}>{u.isActive}</Text>
               <View style={styles.actionCell}>
                 <Button
                   title="Generuj token"
                   onPress={() => handleGenerateToken(u.id)}
                   color="#4caf50"
+                />
+              </View>
+              <View style={styles.actionCell}>
+                <Button
+                  title="Dezaktywuj użytkownika"
+                  onPress={() => handleDeactivateUser(u.id)}
+                  color="#c62300"
+                />
+              </View>
+              <View style={styles.actionCell}>
+                <Button
+                  title="Usuń użytkownika"
+                  onPress={() => handleDeleteUser(u.id)}
+                  color="#a50e0e"
                 />
               </View>
             </View>
@@ -143,6 +193,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#000',
+    textAlign: 'center',
+  },
+  headerCell: {
+    flex: 1,
+    fontSize: 14,
+    color: '#fff',
     textAlign: 'center',
   },
   actionCell: {
