@@ -40,6 +40,27 @@ export default function MainNavigator() {
         component={SettingsScreen}
         options={{ title: 'Ustawienia' }}
       />
+            <Stack.Screen
+        name="CreateGroupChat"
+        component={CreateGroupChatScreen}
+        options={{
+          title: "Utwórz czat gruptowy",
+        }}
+      />
+      <Stack.Screen
+        name="GroupChatList"
+        component={GroupChatListScreen}
+        options={{
+          title: "Lista czatów grupowych",
+        }}
+      />
+      <Stack.Screen
+        name="JoinGroupChat"
+        component={JoinGroupChatScreen}
+        options={{
+          title: "Dołącz do czatu grupowego",
+        }}
+      />
     </Stack.Navigator>
   );
 }

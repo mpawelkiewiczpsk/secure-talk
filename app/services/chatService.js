@@ -2,8 +2,8 @@ import io from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CryptoJS from "crypto-js";
 
-const API_URL = "http://192.168.1.108:3000";
-const SOCKET_URL = "http://192.168.1.108:3000";
+const API_URL = "http://192.168.232.1:3000";
+const SOCKET_URL = "http://192.168.232.1:3000";
 const AES_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY;
 let socket = null;
 
@@ -29,12 +29,15 @@ export const decrypt = (text) => {
 export const markConversationAsRead = async (conversationId) => {
   try {
     const token = await AsyncStorage.getItem("userToken");
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/messages/read`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/messages/read`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     if (!response.ok) throw new Error("Failed to mark messages as read");
     return await response.json();
   } catch (error) {
@@ -224,4 +227,139 @@ export const sendMessage = async (conversationId, content) => {
   socket.emit("send_message", { conversationId, content: encryptedContent });
 
   return messageData;
+};
+
+export const createGroupChat = async (groupName) => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(`${API_URL}/create-group-chat`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ group_name: groupName }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to create group chat");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating group chat:", error);
+    throw error;
+  }
+};
+
+export const joinGroupChat = async (groupUuid) => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(`${API_URL}/join-group-chat`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ group_uuid: groupUuid }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to join group chat");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error joining group chat:", error);
+    throw error;
+  }
+};
+
+export const getGroupConversations = async () => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(`${API_URL}/group-conversations`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || "Failed to fetch group conversations"
+      );
+    }
+
+    const data = await response.json();
+    return data.group_conversations;
+  } catch (error) {
+    console.error("Error fetching group conversations:", error);
+    throw error;
+  }
+};
+
+export const getGroupMessages = async (groupId) => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(
+      `${API_URL}/group-conversations/${groupId}/messages`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to fetch group messages");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching group messages:", error);
+    throw error;
+  }
+};
+
+export const sendGroupMessage = async (groupId, content) => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(
+      `${API_URL}/group-conversations/${groupId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to send group message");
+    }
+
+    const messageData = await response.json();
+
+    if (!socket?.connected) {
+      console.error("Socket not connected");
+      throw new Error("Socket not connected");
+    }
+
+    socket.emit("send_group_message", {
+      group_conversation_id: groupId,
+      content,
+    });
+
+    return messageData;
+  } catch (error) {
+    console.error("Error sending group message:", error);
+    throw error;
+  }
 };
