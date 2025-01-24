@@ -3,9 +3,9 @@ import { View, Text, Button, Alert, StyleSheet } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../../context/AuthContext';
 
-export default function BiometricAuthScreen({ route, navigation }) {
+export default function BiometricAuthScreen({ navigation }) {
   const { login } = useAuth();
-  const { token } = route.params; // Przekazany z TokenLoginScreen
+  const { token } = useAuth(); // Przekazany z TokenLoginScreen
 
   useEffect(() => {
     handleBiometricAuth();
