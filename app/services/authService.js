@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 
-const API_URL = 'http://192.168.0.119:3000';
+const API_URL = 'http://172.20.10.8:3000';
 
 export async function requestRegistration(data) {
   try {
