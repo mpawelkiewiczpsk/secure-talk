@@ -29,10 +29,6 @@ export default function TokenLoginScreen({ navigation }) {
   };
 
   const handleRequestNewToken = () => {
-    // Alert.alert(
-    //   'Nowy token',
-    //   'Skontaktuj się z administratorem, aby uzyskać nowy token.'
-    // );
     navigation.navigate('RegisterRequest');
   };
 

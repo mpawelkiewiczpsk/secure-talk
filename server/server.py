@@ -515,4 +515,4 @@ def get_list():
     return user
         
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=3000, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, port=3000, host='0.0.0.0')
