@@ -2,8 +2,8 @@ import io from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CryptoJS from "crypto-js";
 
-const API_URL = "http://192.168.1.108:3000";
-const SOCKET_URL = "http://192.168.1.108:3000";
+const API_URL = "http://192.168.0.119:3000";
+const SOCKET_URL = "http://192.168.0.119:3000";
 const AES_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY;
 let socket = null;
 

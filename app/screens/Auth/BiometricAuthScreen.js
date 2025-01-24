@@ -28,11 +28,8 @@ export default function BiometricAuthScreen({ route, navigation }) {
       if (authResult.success) {
         await login(token);
         Alert.alert('Sukces', 'Zalogowano przy użyciu biometrii');
-        navigation.replace('Main');
       } else {
         Alert.alert('Błąd biometrii', 'Nie udało się potwierdzić tożsamości.');
-        await login(token);
-        navigation.replace('Main');
         navigation.goBack();
       }
     } catch (err) {

@@ -99,8 +99,8 @@ def register_request():
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
-        cursor.execute("INSERT INTO users (firstName, lastName, email, purpose) VALUES (?, ?, ?, ?)",
-                       (first_name, last_name, email, purpose if purpose else "",))
+        cursor.execute("INSERT INTO users (firstName, lastName, email, purpose, role) VALUES (?, ?, ?, ?, ?)",
+                       (first_name, last_name, email, purpose if purpose else "", "user",))
         connection.commit()
     except sqlite3.Error:
         return jsonify(message="Błąd serwera"), 500
@@ -164,6 +164,49 @@ def check_token():
         connection.close()
     return jsonify(valid=True, userData=user_dict)
 
+@app.route('/deactivate-user/<id>', methods=['PUT'])
+def deactivate_user(id):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1] if len(auth_header.split()) > 1 else None
+    if not token:
+        return jsonify(message="Brak tokenu"), 400
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE token = ? AND role = ?", (token, "admin"))
+        admin_row = cursor.fetchone()
+        if not admin_row:
+            return jsonify(message="Token nieważny albo wykonujący polecenie nie jest administratorem"), 401
+        cursor.execute("UPDATE users SET isActive = 0, token = NULL WHERE id = ?", (id,))
+        connection.commit()
+        return jsonify(message="Pomyślnie dezaktywowano konto")
+    except sqlite3.Error:
+        return jsonify(message="Błąd serwera"), 500
+
+@app.route('/delete-user/<id>', methods=['DELETE'])
+def delete_user(id):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1] if len(auth_header.split()) > 1 else None
+    if not token:
+        return jsonify(message="Brak tokenu"), 400
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE token = ? AND role = ?", (token, "admin"))
+        admin_row = cursor.fetchone()
+        if not admin_row:
+            return jsonify(message="Token nieważny albo wykonujący polecenie nie jest administratorem"), 401
+        cursor.execute("DELETE FROM users WHERE id = ?", (id,))
+        connection.commit()
+        return jsonify(message="Użytkownik pomyślnie usunięty")
+    except sqlite3.Error:
+        return jsonify(message="Błąd serwera"), 500
 
 @app.route('/conversations', methods=['GET'])
 def get_conversations():
@@ -223,7 +266,7 @@ def get_all_users():
         current_user_id = current_user_row[0]
         
         cursor.execute("""
-            SELECT id, firstname, lastname
+            SELECT id, firstname, lastname, isActive
             FROM users
             WHERE id != ?
         """, (current_user_id,))
@@ -231,11 +274,12 @@ def get_all_users():
 
         users = []
         for row in rows:
-            user_id, first_name, last_name = row
+            user_id, first_name, last_name, is_active = row
             full_name = f"{first_name} {last_name}" if first_name and last_name else first_name or last_name
             users.append({
                 "id": user_id,
-                "name": full_name
+                "name": full_name,
+                "isActive": "tak" if is_active == 1 else "nie"
             })
         
         return jsonify(users=users), 200
@@ -462,6 +506,13 @@ def create_conversation():
         return jsonify(message=f"Błąd bazy danych: {e}"), 500
     finally:
         connection.close()
+
+@app.route('/lista', methods=['GET'])
+def get_list():
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    user = cursor.execute("SELECT * FROM users").fetchall()
+    return user
         
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=3000, host='0.0.0.0')
