@@ -1,14 +1,18 @@
 // app/navigation/MainNavigator.js
 
-import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from "react";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 // Import ekranów
-import HomeScreen from '../screens/Main/HomeScreen';
-import ChatListScreen from '../screens/Main/Chat/ChatListScreen';
-import ChatConversationScreen from '../screens/Main/Chat/ChatConversationScreen';
-import NewChatScreen from '../screens/Main/Chat/NewChatScreen';
-import SettingsScreen from '../screens/Main/SettingsScreen';
+import HomeScreen from "../screens/Main/HomeScreen";
+import ChatListScreen from "../screens/Main/Chat/ChatListScreen";
+import ChatConversationScreen from "../screens/Main/Chat/ChatConversationScreen";
+import NewChatScreen from "../screens/Main/Chat/NewChatScreen";
+import SettingsScreen from "../screens/Main/SettingsScreen";
+import CreateGroupChatScreen from "../screens/Main/Forum/CreateGroupChatScreen";
+import GroupChatListScreen from "../screens/Main/Forum/GroupChatListScreen";
+import JoinGroupChatScreen from "../screens/Main/Forum/JoinGroupChatScreen";
+import GroupChatScreen from "../screens/Main/Forum/GroupChatScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -18,29 +22,29 @@ export default function MainNavigator() {
       <Stack.Screen
         name="Home"
         component={HomeScreen}
-        options={{ title: 'Ekran główny' }}
+        options={{ title: "Ekran główny" }}
       />
       <Stack.Screen
         name="ChatList"
         component={ChatListScreen}
-        options={{ title: 'Lista czatów' }}
+        options={{ title: "Lista czatów" }}
       />
       <Stack.Screen
         name="ChatConversation"
         component={ChatConversationScreen}
-        options={{ title: 'Rozmowa' }}
+        options={{ title: "Rozmowa" }}
       />
       <Stack.Screen
         name="NewChat"
         component={NewChatScreen}
-        options={{ title: 'Nowy czat' }}
+        options={{ title: "Nowy czat" }}
       />
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ title: 'Ustawienia' }}
+        options={{ title: "Ustawienia" }}
       />
-            <Stack.Screen
+      <Stack.Screen
         name="CreateGroupChat"
         component={CreateGroupChatScreen}
         options={{
@@ -59,6 +63,13 @@ export default function MainNavigator() {
         component={JoinGroupChatScreen}
         options={{
           title: "Dołącz do czatu grupowego",
+        }}
+      />
+      <Stack.Screen
+        name="GroupChat"
+        component={GroupChatScreen}
+        options={{
+          title: "Czat grupowy",
         }}
       />
     </Stack.Navigator>
