@@ -29,7 +29,8 @@ def initialize_database():
                 email TEXT NOT NULL UNIQUE,
                 purpose TEXT,
                 token TEXT UNIQUE,
-                isActive INTEGER DEFAULT 0
+                isActive INTEGER DEFAULT 0,
+                wasLogged INTEGER DEFAULT 0
             )
         """)
         
@@ -115,6 +116,7 @@ def generate_token(id):
     cursor = connection.cursor()
     try:
         cursor.execute("UPDATE users SET token = ?, isActive = 1 WHERE id = ?", (new_token, id))
+        cursor.execute("UPDATE users SET wasLogged = 1 WHERE token = ?", (new_token,))
         if cursor.rowcount == 0:
             return jsonify(message="Nie znaleziono użytkownika o podanym ID"), 404
         connection.commit()
@@ -129,19 +131,29 @@ def generate_token(id):
 def verify_token():
     token = request.json.get('token')
     if not token:
-        return jsonify(valid=False, message="Brak tokena"), 400
+        return jsonify(message="Brak tokenu"), 400
+
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
+        check_user = cursor.execute("SELECT wasLogged FROM users WHERE token = ?", (token,)).fetchone()
+        if check_user and check_user[0] == 1:
+            return jsonify(message="Użytkownik jest już zalogowany"), 401
+
+     
         user = cursor.execute("SELECT * FROM users WHERE token = ? AND isActive = 1", (token,)).fetchone()
         user_dict = row_to_dict(cursor, user)
         if not user_dict:
-            return jsonify(valid=False, message="Nieprawidłowy token"), 401
+            return jsonify(message="Nieprawidłowy token"), 401
+            
+        cursor.execute("UPDATE users SET wasLogged = 1 WHERE token = ?", (token,))
+        connection.commit()
+        
+        return jsonify(valid=True, userData=user_dict)
     except sqlite3.Error:
-        return jsonify(valid=False, message="Błąd bazy danych"), 500
+        return jsonify(message="Błąd serwera"), 500
     finally:
         connection.close()
-    return jsonify(valid=True, userData=user_dict)
 
 @app.route('/check-token', methods=['GET'])
 def check_token():
@@ -172,7 +184,6 @@ def deactivate_user(id):
     token = auth_header.split()[1] if len(auth_header.split()) > 1 else None
     if not token:
         return jsonify(message="Brak tokenu"), 400
-
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
@@ -185,7 +196,9 @@ def deactivate_user(id):
         return jsonify(message="Pomyślnie dezaktywowano konto")
     except sqlite3.Error:
         return jsonify(message="Błąd serwera"), 500
+    
 
+    
 @app.route('/delete-user/<id>', methods=['DELETE'])
 def delete_user(id):
     auth_header = request.headers.get('Authorization')
@@ -345,7 +358,28 @@ def get_messages(conversation_id):
     finally:
         connection.close()
         
- 
+@app.route('/update-was-logged', methods=['PUT'])
+def update_was_logged():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1] if len(auth_header.split()) > 1 else None
+    if not token:
+        return jsonify(message="Brak tokenu"), 400
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("UPDATE users SET wasLogged = 1 WHERE token = ?", (token,))
+        if cursor.rowcount == 0:
+            return jsonify(message="Nie znaleziono użytkownika z podanym tokenem"), 404
+        connection.commit()
+        return jsonify(message="Pomyślnie zaktualizowano status logowania")
+    except sqlite3.Error:
+        return jsonify(message="Błąd serwera"), 500
+    finally:
+        connection.close()
+        
 @app.route('/conversations/<conversation_id>/messages/read', methods=['POST'])
 def mark_messages_read(conversation_id):
     auth_header = request.headers.get('Authorization')
