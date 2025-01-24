@@ -29,10 +29,7 @@ export default function TokenLoginScreen({ navigation }) {
   };
 
   const handleRequestNewToken = () => {
-    Alert.alert(
-      'Nowy token',
-      'Skontaktuj się z administratorem, aby uzyskać nowy token.'
-    );
+    navigation.navigate('RegisterRequest');
   };
 
   return (
@@ -45,7 +42,7 @@ export default function TokenLoginScreen({ navigation }) {
         onChangeText={setTokenInput}
       />
       <Button title="Zaloguj" onPress={handleTokenLogin} />
-      <Button title="Poproś o nowy token" onPress={handleRequestNewToken} />
+      <Button title="Zarejestruj się" onPress={handleRequestNewToken} />
     </View>
   );
 }

@@ -9,20 +9,30 @@ export default function RegisterRequestScreen({ navigation }) {
   const [purpose, setPurpose] = useState('');
 
   const handleRegisterRequest = async () => {
+    // Prosta walidacja
     if (!firstName || !lastName || !email) {
       Alert.alert('Uwaga', 'Wypełnij wszystkie wymagane pola');
       return;
     }
     try {
-      const data = { firstName, lastName, email, purpose };
+      // Zwróć uwagę: klucze muszą pasować do tego, co serwer odczytuje:
+      const data = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        purpose: purpose,  // pole opcjonalne
+      };
       await requestRegistration(data);
+
       Alert.alert(
         'Dziękujemy!',
         'Zgłoszenie zostało wysłane. Oczekuj na token od administratora.'
       );
+      // Przejście do ekranu logowania tokenem
       navigation.navigate('TokenLogin');
     } catch (err) {
       console.log('Błąd rejestracji:', err.message);
+      Alert.alert('Błąd', 'Wystąpił problem podczas rejestracji.');
     }
   };
 
