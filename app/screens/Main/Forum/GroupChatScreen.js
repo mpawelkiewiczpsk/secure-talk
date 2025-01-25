@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import * as ChatService from "../../../services/chatService";
 import MessageBubble from "../../../components/MessageBubble";
+import * as AuthService from "../../../services/authService";
 
 export default function GroupChatScreen({ route, navigation }) {
   const { groupId, groupUuid, groupName } = route.params;
@@ -17,8 +18,12 @@ export default function GroupChatScreen({ route, navigation }) {
   const [currentUserId, setCurrentUserId] = useState(null);
 
   const fetchCurrentUserId = async () => {
-    const userId = await AsyncStorage.getItem("userId");
-    setCurrentUserId(userId);
+    const token = await AsyncStorage.getItem("userToken");
+    const userData = await AuthService.checkTokenValidity(token);
+    if (!userData.valid) {
+      throw new Error("Invalid token");
+    }
+    setCurrentUserId(userData.userData.id);
   };
 
   const fetchMessages = async () => {
@@ -87,3 +92,4 @@ const styles = StyleSheet.create({
     padding: 10,
   },
 });
+
