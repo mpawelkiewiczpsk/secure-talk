@@ -54,6 +54,7 @@ export default function ChatConversationScreen({ route, navigation }) {
           socketInstance.emit("join_conversation", { conversationId });
         });
 
+        socketInstance.on(`conversation_${conversationId}`, handleNewMessage);
         socketInstance.on("message", handleNewMessage);
         socketInstance.on("connect_error", (err) => {
           console.error("Socket connection error:", err);
@@ -71,14 +72,14 @@ export default function ChatConversationScreen({ route, navigation }) {
 
     initialize();
 
-    return () => {
-      if (socket) {
-        socket.off("message", handleNewMessage);
-        socket.emit("leave_conversation", { conversationId });
-        socket.disconnect();
-      }
-    };
-  }, [conversationId]);
+     return () => {
+    if (socket) {
+      socket.off(`conversation_${conversationId}`, handleNewMessage);
+      socket.emit("leave_conversation", { conversationId });
+      socket.disconnect();
+    }
+  };
+}, [conversationId]);
 
   const handleNewMessage = (newMsg) => {
     console.log("Received new message:", newMsg);
