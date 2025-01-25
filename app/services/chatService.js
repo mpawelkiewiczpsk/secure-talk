@@ -363,3 +363,23 @@ export const sendGroupMessage = async (groupId, content) => {
     throw error;
   }
 };
+
+export const getUnreadGroupMessagesCount = async () => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await fetch(
+      `${API_URL}/group-conversations/unread-messages`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (!response.ok) throw new Error("Failed to fetch unread messages");
+    const data = await response.json();
+    return data.unreadCounts;
+  } catch (error) {
+    console.error("Error fetching unread messages:", error);
+    throw error;
+  }
+};

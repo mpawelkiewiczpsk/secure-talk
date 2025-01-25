@@ -11,6 +11,7 @@ import * as ChatService from "../../../services/chatService";
 
 export default function GroupChatListScreen({ navigation }) {
   const [groups, setGroups] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   useEffect(() => {
     fetchGroups();
@@ -18,8 +19,12 @@ export default function GroupChatListScreen({ navigation }) {
 
   const fetchGroups = async () => {
     try {
-      const data = await ChatService.getGroupConversations();
+      const [data, unreadMessages] = await Promise.all([
+        ChatService.getGroupConversations(),
+        ChatService.getUnreadGroupMessagesCount(),
+      ]);
       setGroups(data);
+      setUnreadCounts(unreadMessages || {});
     } catch (error) {
       Alert.alert("Błąd", "Nie udało się pobrać list group");
     }
@@ -38,6 +43,16 @@ export default function GroupChatListScreen({ navigation }) {
     >
       <Text style={styles.groupName}>{item.name}</Text>
       <Text style={styles.groupUuid}>UUID: {item.uuid}</Text>
+      <View style={styles.unreadContainer}>
+        {unreadCounts[item.id] > 0 && (
+          <>
+            <Text style={styles.unreadText}>
+              nieodczytane: {unreadCounts[item.id]}
+            </Text>
+            <View style={styles.unreadDot} />
+          </>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -131,6 +146,21 @@ const styles = StyleSheet.create({
     color: "white",
     marginLeft: 8,
     fontWeight: "bold",
+  },
+  unreadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  unreadText: {
+    fontSize: 12,
+    color: "#666",
+    marginRight: 5,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "red",
   },
 });
 

@@ -1,29 +1,37 @@
 import React, { useEffect, useState } from "react";
 import {
   View,
-  Text,
   FlatList,
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 import * as ChatService from "../../../services/chatService";
+import MessageBubble from "../../../components/MessageBubble";
 
 export default function GroupChatScreen({ route, navigation }) {
   const { groupId, groupUuid, groupName } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  const fetchCurrentUserId = async () => {
+    const userId = await AsyncStorage.getItem("userId");
+    setCurrentUserId(userId);
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const data = await ChatService.getGroupMessages(groupId);
+      setMessages(data.messages);
+    } catch (error) {
+      Alert.alert("Błąd", "Nie udało się pobrać wiadomości");
+    }
+  };
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const data = await ChatService.getGroupMessages(groupId);
-        setMessages(data.messages);
-      } catch (error) {
-        Alert.alert("Błąd", "Nie udało się pobrać wiadomości");
-      }
-    };
-
+    fetchCurrentUserId();
     fetchMessages();
   }, [groupId]);
 
@@ -39,10 +47,7 @@ export default function GroupChatScreen({ route, navigation }) {
   };
 
   const renderMessage = ({ item }) => (
-    <View style={styles.messageContainer}>
-      <Text style={styles.messageSender}>{item.sender_name}</Text>
-      <Text>{item.content}</Text>
-    </View>
+    <MessageBubble message={item} currentUserId={currentUserId} />
   );
 
   return (
@@ -69,15 +74,6 @@ export default function GroupChatScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  messageContainer: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  messageSender: {
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
   inputContainer: {
     flexDirection: "row",
     padding: 10,
