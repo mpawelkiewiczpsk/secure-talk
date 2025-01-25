@@ -6,25 +6,32 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Przy starcie aplikacji spróbujmy wczytać token z SecureStore
     (async () => {
       try {
         const storedToken = await SecureStore.getItemAsync('userToken');
         if (storedToken) {
-          // Opcjonalnie: sprawdź ważność tokenu na serwerze
+          // Sprawdzamy ważność w backendzie
           const response = await checkTokenValidity(storedToken);
           if (response && response.valid) {
+            // Token jest wciąż ważny
             setToken(storedToken);
-            setIsAuthenticated(true);
+            // Nie ustawiamy isAuthenticated = true,
+            // bo chcemy wymusić logowanie biometrią (LocalAuth).
+            setIsAuthenticated(false);
           } else {
-            // Jeśli nieważny, usuń i pozostań niezalogowany
+            // Token nieważny => usuwamy go
             await SecureStore.deleteItemAsync('userToken');
+            setToken(null);
             setIsAuthenticated(false);
           }
+        } else {
+          // Brak tokenu
+          setToken(null);
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.log('Błąd ładowania tokenu:', err.message);
@@ -40,10 +47,15 @@ export function AuthProvider({ children }) {
     await SecureStore.setItemAsync('userToken', newToken);
   };
 
+  /**
+   * "Wylogowanie" – ale nie usuwamy tokenu. 
+   * Chcemy, by user wciąż mógł się zalogować np. biometrią.
+   */
   const logout = async () => {
-    setToken(null);
     setIsAuthenticated(false);
-    await SecureStore.deleteItemAsync('userToken');
+    // Nie usuwamy tokenu z SecureStore
+    // W razie potrzeby można dodać "tymczasowe" info w SecureStore, 
+    // że user jest "wylogowany" – zależnie od logiki.
   };
 
   return (
@@ -54,6 +66,8 @@ export function AuthProvider({ children }) {
         isLoading,
         login,
         logout,
+        setToken,
+        setIsAuthenticated,
       }}
     >
       {children}

@@ -16,7 +16,7 @@ export default function TokenLoginScreen({ navigation }) {
       if (response.valid) {
         await AsyncStorage.setItem('userToken', tokenInput);
         // Token jest poprawny -> przejście do ekranu biometrii
-        navigation.navigate('BiometricAuth', { token: tokenInput });
+        navigation.navigate('BiometricAuth');
       } else {
         Alert.alert('Błąd', 'Token nieprawidłowy lub wygasł');
         await AsyncStorage.removeItem('userToken');
