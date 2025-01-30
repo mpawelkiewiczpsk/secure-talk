@@ -652,7 +652,8 @@ def join_group_chat():
         return jsonify(message=f"Błąd bazy danych: {e}"), 500
     finally:
         connection.close()
- 
+
+
 @app.route('/group-conversations', methods=['GET'])
 def get_group_conversations():
     auth_header = request.headers.get('Authorization')

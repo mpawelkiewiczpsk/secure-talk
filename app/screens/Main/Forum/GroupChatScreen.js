@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Text, // Dodaj import Text
+  Text,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ChatService from "../../../services/chatService";
 import MessageBubble from "../../../components/MessageBubble";
 import * as AuthService from "../../../services/authService";
@@ -19,12 +20,17 @@ export default function GroupChatScreen({ route, navigation }) {
   const [currentUserId, setCurrentUserId] = useState(null);
 
   const fetchCurrentUserId = async () => {
-    const token = await AsyncStorage.getItem("userToken");
-    const userData = await AuthService.checkTokenValidity(token);
-    if (!userData.valid) {
-      throw new Error("Invalid token");
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const userData = await AuthService.checkTokenValidity(token);
+      if (!userData.valid) {
+        throw new Error("Invalid token");
+      }
+      setCurrentUserId(userData.userData.id);
+      console.log("Current User ID:", userData.userData.id);
+    } catch (error) {
+      console.error("Error fetching current user ID:", error);
     }
-    setCurrentUserId(userData.userData.id);
   };
 
   const fetchMessages = async () => {

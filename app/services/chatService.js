@@ -265,6 +265,9 @@ export const createGroupChat = async (groupName) => {
 export const joinGroupChat = async (groupUuid) => {
   try {
     const token = await AsyncStorage.getItem("userToken");
+    if (!token) {
+      throw new Error("No token found");
+    }
     const response = await fetch(`${API_URL}/join-group-chat`, {
       method: "POST",
       headers: {
@@ -282,30 +285,6 @@ export const joinGroupChat = async (groupUuid) => {
     return await response.json();
   } catch (error) {
     console.error("Error joining group chat:", error);
-    throw error;
-  }
-};
-
-export const getGroupConversations = async () => {
-  try {
-    const token = await AsyncStorage.getItem("userToken");
-    const response = await fetch(`${API_URL}/group-conversations`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || "Failed to fetch group conversations"
-      );
-    }
-
-    const data = await response.json();
-    return data.group_conversations;
-  } catch (error) {
-    console.error("Error fetching group conversations:", error);
     throw error;
   }
 };
