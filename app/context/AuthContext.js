@@ -58,6 +58,15 @@ export function AuthProvider({ children }) {
     // że user jest "wylogowany" – zależnie od logiki.
   };
 
+  const deleteAccount = async () => {
+    setIsAuthenticated(false);
+    setToken(null)
+    await SecureStore.deleteItemAsync('userToken');
+    // Nie usuwamy tokenu z SecureStore
+    // W razie potrzeby można dodać "tymczasowe" info w SecureStore, 
+    // że user jest "wylogowany" – zależnie od logiki.
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -66,6 +75,7 @@ export function AuthProvider({ children }) {
         isLoading,
         login,
         logout,
+        deleteAccount,
         setToken,
         setIsAuthenticated,
       }}

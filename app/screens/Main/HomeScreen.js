@@ -5,7 +5,7 @@ import { View, Text, Button, StyleSheet } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 
 export default function HomeScreen({ navigation }) {
-  const { logout } = useAuth();
+  const { deleteAccount } = useAuth();
 
   return (
     <View style={styles.container}>
@@ -27,7 +27,7 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.buttonWrapper}>
         <Button
           title="Wyloguj"
-          onPress={() => logout()} // ustawia isAuthenticated = false
+          onPress={() => deleteAccount()} // ustawia isAuthenticated = false
         />
       </View>
     </View>
