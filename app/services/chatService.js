@@ -2,8 +2,8 @@ import io from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CryptoJS from "crypto-js";
 
-const API_URL = "http://192.168.1.15:3000";
-const SOCKET_URL = "http://192.168.1.15:3000";
+const API_URL = "http://192.168.123.53:3000";
+const SOCKET_URL = "http://192.168.123.53:3000";
 const AES_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY;
 let socket = null;
 
@@ -45,6 +45,7 @@ export const markConversationAsRead = async (conversationId) => {
     throw error;
   }
 };
+
 export const getUnreadMessagesCount = async () => {
   try {
     const token = await AsyncStorage.getItem("userToken");
@@ -61,6 +62,7 @@ export const getUnreadMessagesCount = async () => {
     throw error;
   }
 };
+
 export const getConversations = async () => {
   try {
     const token = await AsyncStorage.getItem("userToken");
@@ -174,6 +176,12 @@ export const disconnectSocket = () => {
   }
 };
 
+const ensureSocketConnected = async () => {
+  if (!socket || !socket.connected) {
+    await initializeSocket();
+  }
+};
+
 export const createMessage = async (conversationId, content) => {
   try {
     const encryptedContent = encrypt(content);
@@ -207,6 +215,7 @@ export const createMessage = async (conversationId, content) => {
 };
 
 export const sendMessage = async (conversationId, content) => {
+  await ensureSocketConnected();
   const messageData = await createMessage(conversationId, content);
 
   if (!socket?.connected) {
@@ -318,7 +327,12 @@ export const getGroupMessages = async (groupId) => {
       throw new Error(errorData.message || "Failed to fetch group messages");
     }
 
-    return await response.json();
+    const data = await response.json();
+    data.messages = data.messages.map((message) => ({
+      ...message,
+      content: decrypt(message.content),
+    }));
+    return data;
   } catch (error) {
     console.error("Error fetching group messages:", error);
     throw error;
@@ -326,7 +340,9 @@ export const getGroupMessages = async (groupId) => {
 };
 
 export const sendGroupMessage = async (groupId, content) => {
+  await ensureSocketConnected();
   try {
+    const encryptedContent = encrypt(content);
     const token = await AsyncStorage.getItem("userToken");
     const response = await fetch(
       `${API_URL}/group-conversations/${groupId}/messages`,
@@ -336,7 +352,7 @@ export const sendGroupMessage = async (groupId, content) => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: encryptedContent }),
       }
     );
 
@@ -354,7 +370,7 @@ export const sendGroupMessage = async (groupId, content) => {
 
     socket.emit("send_group_message", {
       group_conversation_id: groupId,
-      content,
+      content: encryptedContent,
     });
 
     return messageData;

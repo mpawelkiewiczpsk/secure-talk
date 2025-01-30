@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Text, // Dodaj import Text
 } from "react-native";
 import * as ChatService from "../../../services/chatService";
 import MessageBubble from "../../../components/MessageBubble";
@@ -46,6 +47,7 @@ export default function GroupChatScreen({ route, navigation }) {
     try {
       await ChatService.sendGroupMessage(groupId, newMessage);
       setNewMessage("");
+      fetchMessages(); // Pobierz wiadomości po wysłaniu nowej wiadomości
     } catch (error) {
       Alert.alert("Błąd", "Nie udało się wysłać wiadomości");
     }
@@ -92,4 +94,3 @@ const styles = StyleSheet.create({
     padding: 10,
   },
 });
-
