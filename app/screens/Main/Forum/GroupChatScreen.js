@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Text, // Dodaj import Text
 } from "react-native";
 import * as ChatService from "../../../services/chatService";
 import MessageBubble from "../../../components/MessageBubble";
 import * as AuthService from "../../../services/authService";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function GroupChatScreen({ route, navigation }) {
   const { groupId, groupUuid, groupName } = route.params;
   const [messages, setMessages] = useState([]);
@@ -23,7 +24,8 @@ export default function GroupChatScreen({ route, navigation }) {
     if (!userData.valid) {
       throw new Error("Invalid token");
     }
-    setCurrentUserId(userData.userData.id);
+  
+      setCurrentUserId(userData.userData.id);
   };
 
   const fetchMessages = async () => {
@@ -50,17 +52,37 @@ export default function GroupChatScreen({ route, navigation }) {
       Alert.alert("Błąd", "Nie udało się wysłać wiadomości");
     }
   };
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+          fetchMessages();
+      } catch (err) {
+        console.error('Error fetching messages:', err);
+      }
+    }, 1000);
 
-  const renderMessage = ({ item }) => (
-    <MessageBubble message={item} currentUserId={currentUserId} />
-  );
+    return () => clearInterval(interval);
+  }, [groupId]);
+
+  // const renderMessage = ({ item }) => (
+  //   <MessageBubble message={item} currentUserId={currentUserId} />
+  // );
 
   return (
     <View style={styles.container}>
-      <FlatList
+      {/* <FlatList
         data={messages}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderMessage}
+      /> */}
+            <FlatList
+        style={styles.messageList}
+        data={messages}
+        renderItem={({ item }) => (
+          <MessageBubble message={item} currentUserId={currentUserId} />
+        )}
+        keyExtractor={(item, index) => (item.id ? item.id.toString() : `temp-${index}`)}
+        inverted={true}
       />
       <View style={styles.inputContainer}>
         <TextInput
@@ -92,4 +114,3 @@ const styles = StyleSheet.create({
     padding: 10,
   },
 });
-

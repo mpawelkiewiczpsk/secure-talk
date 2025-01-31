@@ -78,7 +78,39 @@ def initialize_database():
                 PRIMARY KEY (message_id, user_id)
             )
         """)
-        
+
+          # Create group_conversations table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS group_conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # Create group_conversation_participants table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS group_conversation_participants (
+                group_conversation_id INTEGER,
+                user_id INTEGER,
+                FOREIGN KEY(group_conversation_id) REFERENCES group_conversations(id),
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                PRIMARY KEY (group_conversation_id, user_id)
+            )
+        """)
+
+        # Create group_messages table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS group_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_conversation_id INTEGER,
+                user_id INTEGER,
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY(group_conversation_id) REFERENCES group_conversations(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        """)
         connection.commit()
         print("Database initialized successfully.")
     except sqlite3.Error as e:
@@ -468,6 +500,8 @@ def get_unread_messages():
     
     try:
         user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
+        if not user:
+            return jsonify(message="Nieprawidłowy token"), 401
         user_id = user[0]
         
         cursor.execute("""
@@ -480,6 +514,9 @@ def get_unread_messages():
         
         unread_counts = {row[0]: row[1] for row in cursor.fetchall()}
         return jsonify({'unreadCounts': unread_counts})
+    except sqlite3.Error as e:
+        print(f"Błąd bazy danych: {str(e)}")  # Dodane logowanie błędów
+        return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
     finally:
         connection.close()
         
@@ -548,6 +585,237 @@ def get_list():
     cursor = connection.cursor()
     user = cursor.execute("SELECT * FROM users").fetchall()
     return user
+
+
+@app.route('/create-group-chat', methods=['POST'])
+def create_group_chat():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1]
+
+    group_name = request.json.get('group_name')
+    if not group_name:
+        return jsonify(message="Brak nazwy grupy"), 400
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            return jsonify(message="Nieprawidłowy token"), 401
+        user_id = user_row[0]
+
+        now = datetime.utcnow().isoformat()
+        cursor.execute("INSERT INTO group_conversations (name, created_at) VALUES (?, ?)", (group_name, now))
+        group_conversation_id = cursor.lastrowid
+
+        cursor.execute("INSERT INTO group_conversation_participants (group_conversation_id, user_id) VALUES (?, ?)", (group_conversation_id, user_id))
+
+        connection.commit()
+        return jsonify(group_conversation_id=group_conversation_id, message="Nowa grupa utworzona"), 201
+    except sqlite3.Error as e:
+        return jsonify(message=f"Błąd bazy danych: {e}"), 500
+    finally:
+        connection.close()
+
+@app.route('/join-group-chat', methods=['POST'])
+def join_group_chat():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1]
+
+    group_uuid = request.json.get('group_uuid')
+    if not group_uuid:
+        return jsonify(message="Brak UUID grupy"), 400
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            return jsonify(message="Nieprawidłowy token"), 401
+        user_id = user_row[0]
+
+        cursor.execute("SELECT id FROM group_conversations WHERE id = ?", (group_uuid,))
+        group_row = cursor.fetchone()
+        if not group_row:
+            return jsonify(message="Nie znaleziono grupy"), 404
+
+        # Sprawdź, czy użytkownik już jest członkiem grupy
+        cursor.execute("SELECT * FROM group_conversation_participants WHERE group_conversation_id = ? AND user_id = ?", (group_uuid, user_id))
+        participant_row = cursor.fetchone()
+        if participant_row:
+            return jsonify(message="Użytkownik już jest członkiem grupy"), 400
+
+        cursor.execute("INSERT INTO group_conversation_participants (group_conversation_id, user_id) VALUES (?, ?)", (group_uuid, user_id))
+
+        connection.commit()
+        return jsonify(message="Dołączono do grupy"), 200
+    except sqlite3.Error as e:
+        return jsonify(message=f"Błąd bazy danych: {e}"), 500
+    finally:
+        connection.close()
+ 
+@app.route('/group-conversations', methods=['GET'])
+def get_group_conversations():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1]
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            return jsonify(message="Nieprawidłowy token"), 401
+        user_id = user_row[0]
+
+        cursor.execute("""
+            SELECT gc.id, gc.name, gc.created_at
+            FROM group_conversations gc
+            JOIN group_conversation_participants gcp ON gcp.group_conversation_id = gc.id
+            WHERE gcp.user_id = ?
+        """, (user_id,))
+        rows = cursor.fetchall()
+
+        group_conversations = []
+        for row in rows:
+            group_conversations.append({
+                "id": row[0],
+                "name": row[1],
+                "created_at": row[2]
+            })
+
+        return jsonify(group_conversations=group_conversations), 200
+    except sqlite3.Error as e:
+        return jsonify(message=f"Błąd bazy danych: {e}"), 500
+    finally:
+        connection.close()
+
+@app.route('/group-conversations/<group_id>/messages', methods=['GET'])
+def get_group_messages(group_id):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1]
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            return jsonify(message="Nieprawidłowy token"), 401
+        user_id = user_row[0]
+
+        cursor.execute("""
+            SELECT gm.id, gm.content, gm.timestamp, u.firstName, u.lastName, gm.user_id
+            FROM group_messages gm
+            JOIN users u ON gm.user_id = u.id
+            WHERE gm.group_conversation_id = ?
+            ORDER BY gm.timestamp DESC
+            LIMIT 50
+        """, (group_id,))
+        rows = cursor.fetchall()
+
+        messages = []
+        for row in rows:
+            messages.append({
+                "id": row[0],
+                "content": row[1],
+                "timestamp": row[2],
+                "sender_name": f"{row[3]} {row[4]}",
+                "user_id": row[5]
+            })
+
+        return jsonify(messages=messages), 200
+    except sqlite3.Error as e:
+        return jsonify(message=f"Błąd bazy danych: {e}"), 500
+    finally:
+        connection.close()
+
+@app.route('/group-conversations/<group_id>/messages', methods=['POST'])
+def create_group_message(group_id):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak autoryzacji"), 401
+    token = auth_header.split()[1]
+
+    content = request.json.get('content')
+    if not content:
+        return jsonify(message="Brak treści wiadomości"), 400
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
+        if not user:
+            return jsonify(message="Nieprawidłowy token"), 401
+
+        cursor.execute("""
+            INSERT INTO group_messages (user_id, group_conversation_id, content, timestamp)
+            VALUES (?, ?, ?, ?)
+        """, (
+            user[0],
+            group_id,
+            content,
+            datetime.now().isoformat()
+        ))
+        new_message_id = cursor.lastrowid
+
+        connection.commit()
+        return jsonify(message_id=new_message_id, content=content, group_conversation_id=group_id)
+    except sqlite3.Error as e:
+        return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
+    finally:
+        connection.close()
+
+
+@app.route('/group-conversations/unread-messages', methods=['GET'])
+def get_unread_group_messages_count():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify(message="Brak nagłówka Authorization"), 400
+    token = auth_header.split()[1]
+
+    connection = sqlite3.connect('mydatabase.sqlite')
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            return jsonify(message="Nieprawidłowy token"), 401
+        user_id = user_row[0]
+
+        cursor.execute("""
+            SELECT gm.group_conversation_id, COUNT(*) as unread_count
+            FROM group_messages gm
+            LEFT JOIN message_status ms ON gm.id = ms.message_id AND ms.user_id = ?
+            WHERE ms.is_read = 0 OR ms.is_read IS NULL
+            GROUP BY gm.group_conversation_id
+        """, (user_id,))
         
+        unread_counts = {}
+        for row in cursor.fetchall():
+            try:
+                group_id = int(row[0])
+                unread_count = int(row[1])
+                unread_counts[group_id] = unread_count
+            except ValueError:
+                print(f"Nieprawidłowa wartość w wierszu: {row}")
+
+        return jsonify({'unreadCounts': unread_counts}), 200
+    except sqlite3.Error as e:
+        print(f"Błąd bazy danych: {str(e)}")  # Dodane logowanie błędów
+        return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
+    finally:
+        connection.close()
+
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=3000, host='0.0.0.0')
