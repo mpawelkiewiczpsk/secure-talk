@@ -31,19 +31,30 @@ export default function ChatListScreen({ navigation }) {
       }
     };
     fetchData();
-  }, []);
 
+
+    const interval = setInterval(async () => {
+      try {
+        const unreadMessages = await ChatService.getUnreadMessagesCount();
+        setUnreadCounts(unreadMessages || {});
+      } catch (error) {
+        console.error('Error updating unread count:', error);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       const fetchUnreadCounts = async () => {
         try {
-          await ChatService.getUnreadMessagesCount();
+          const unreadMessages = await ChatService.getUnreadMessagesCount();
+          setUnreadCounts(unreadMessages || {});
         } catch (error) {
           console.error('Error updating unread count:', error);
         }
       };
-      
       fetchUnreadCounts();
     }, [])
   );
@@ -53,7 +64,7 @@ export default function ChatListScreen({ navigation }) {
       const result = await ChatService.createConversation(recipientId);
       navigation.navigate('ChatConversation', {
         conversationId: result.conversation_id,
-        userName: '', 
+        userName: '',
       });
     } catch (error) {
       Alert.alert('Błąd', error.message);
@@ -81,25 +92,25 @@ export default function ChatListScreen({ navigation }) {
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
-    <FlatList
-  data={filteredUsers}
-  keyExtractor={(item) => item.id.toString()}
-  renderItem={({ item }) => (
-    <TouchableOpacity style={styles.item} onPress={() => handleUserPress(item.id)}>
-      <View style={styles.userInfo}>
-        <Text style={styles.itemText}>{item.name}</Text>
-        <View style={styles.unreadContainer}>
-          {unreadCounts[item.id] > 0 && (
-            <>
-              <Text style={styles.unreadText}>nieodczytane: {unreadCounts[item.id]}</Text>
-              <View style={styles.unreadDot} />
-            </>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  )}
-  ListEmptyComponent={<Text style={styles.emptyText}>Brak wyników</Text>}
+      <FlatList
+        data={filteredUsers}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.item} onPress={() => handleUserPress(item.id)}>
+            <View style={styles.userInfo}>
+              <Text style={styles.itemText}>{item.name}</Text>
+              <View style={styles.unreadContainer}>
+                {unreadCounts[item.id] > 0 && (
+                  <>
+                    <Text style={styles.unreadText}>nieodczytane: {unreadCounts[item.id]}</Text>
+                    <View style={styles.unreadDot} />
+                  </>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={<Text style={styles.emptyText}>Brak wyników</Text>}
       />
     </View>
   );

@@ -33,8 +33,7 @@ export default function BiometricAuthScreen({ navigation }) {
         navigation.goBack();
       }
     } catch (err) {
-      console.log('Błąd autoryzacji biometrycznej:', err.message);
-      Alert.alert('Błąd', err.message);
+
       navigation.goBack();
     }
   };
