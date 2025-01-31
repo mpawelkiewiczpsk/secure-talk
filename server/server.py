@@ -28,6 +28,7 @@ def initialize_database():
                 lastName TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE,
                 purpose TEXT,
+                role TEXT DEFAULT 'user',
                 token TEXT UNIQUE,
                 isActive INTEGER DEFAULT 0,
                 wasLogged INTEGER DEFAULT 0
@@ -135,7 +136,8 @@ def register_request():
         cursor.execute("INSERT INTO users (firstName, lastName, email, purpose, role) VALUES (?, ?, ?, ?, ?)",
                        (first_name, last_name, email, purpose if purpose else "", "user",))
         connection.commit()
-    except sqlite3.Error:
+    except sqlite3.Error as e:
+        print(e)
         return jsonify(message="Błąd serwera"), 500
     connection.close()
     return jsonify(message="Zgłoszenie rejestracji przyjęto")
