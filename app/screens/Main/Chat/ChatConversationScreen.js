@@ -60,8 +60,7 @@ export default function ChatConversationScreen({ route, navigation }) {
           console.error("Socket connection error:", err);
         });
 
-        const fetchedMessages = await ChatService.getMessages(conversationId);
-        setMessages(fetchedMessages.messages);
+
       } catch (err) {
         console.error("[Initialization error]", err);
         Alert.alert("Błąd", "Nie udało się zainicjalizować czatu");
@@ -80,13 +79,30 @@ export default function ChatConversationScreen({ route, navigation }) {
     }
   };
 }, [conversationId]);
+useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const fetchedMessages = await ChatService.getMessages(conversationId);
+        setMessages(fetchedMessages.messages);
+      } catch (err) {
+        console.error('Error fetching messages:', err);
+      }
+    }, 1000);
 
-  const handleNewMessage = (newMsg) => {
-    console.log("Received new message:", newMsg);
-    setMessages((prev) => [newMsg, ...prev]);
-  };
- 
-  
+    return () => clearInterval(interval);
+  }, [conversationId]);
+
+const handleNewMessage = async (newMsg) => {
+  console.log("Received new message:", newMsg);
+
+  setMessages((prev) => {
+    const exists = prev.some(msg => msg.id === newMsg.id);
+    return exists ? prev : [newMsg, ...prev];
+  });
+};
+
+
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !socket) {
       console.log("sendMessage aborted: Empty message or no socket");
@@ -138,7 +154,7 @@ export default function ChatConversationScreen({ route, navigation }) {
         renderItem={({ item }) => (
           <MessageBubble message={item} currentUserId={currentUserId} />
         )}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) => (item.id ? item.id.toString() : `temp-${index}`)}
         inverted={true}
       />
       <View style={styles.inputContainer}>

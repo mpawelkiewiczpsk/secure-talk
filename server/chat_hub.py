@@ -107,7 +107,7 @@ def handle_message(data):
         connection.close()
 
         # Emit to room
-        emit('message', {
+        emit(f"conversation_{conversation_id}", {  # Upewniamy się, że nazwa eventu pasuje
             'user_id': user_id,
             'conversation_id': conversation_id,
             'content': content,
