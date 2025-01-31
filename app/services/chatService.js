@@ -75,7 +75,7 @@ export const getConversations = async () => {
     const data = await response.json();
     return data.conversations;
   } catch (error) {
-    console.error("Error fetching conversations:", error);
+    console.error("Error fetching conversations: ", error);
     throw error;
   }
 };
