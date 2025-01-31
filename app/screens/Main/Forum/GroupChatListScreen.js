@@ -15,6 +15,14 @@ export default function GroupChatListScreen({ navigation }) {
 
   useEffect(() => {
     fetchGroups();
+    const interval = setInterval(async () => {
+          try {
+            const unreadMessages = await ChatService.getUnreadGroupMessagesCount();
+            setUnreadCounts(unreadMessages || {});
+          } catch (error) {
+            console.error('Error updating unread count:', error);
+          }
+        }, 1000);
   }, []);
 
   const fetchGroups = async () => {
