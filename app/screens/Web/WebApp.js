@@ -5,7 +5,7 @@ import { StyleSheet, View, Text, ScrollView, Button, Alert } from 'react-native'
 
 // Adres Twojego backendu Flask/SocketIO
 const API_URL = 'http://localhost:3000';
-const ADMIN_TOKEN = '6b66df5b-d7e5-479b-bc8d-278b924ed8e4';
+const ADMIN_TOKEN = '123';
 
 export default function WebApp() {
   const [users, setUsers] = useState([]);
