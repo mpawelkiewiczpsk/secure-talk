@@ -1,6 +1,6 @@
 import { Alert } from "react-native";
 
-const API_URL = "https://3409-5-173-29-33.ngrok-free.app";
+const API_URL = "http://192.168.123.53:3000";
 
 export async function requestRegistration(data) {
   try {
