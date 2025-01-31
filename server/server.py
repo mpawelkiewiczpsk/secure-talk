@@ -148,6 +148,7 @@ def generate_token(id):
     cursor = connection.cursor()
     try:
         cursor.execute("UPDATE users SET token = ?, isActive = 1 WHERE id = ?", (new_token, id))
+        cursor.execute("UPDATE users SET wasLogged = 0 WHERE token = ?", (new_token,))
         if cursor.rowcount == 0:
             return jsonify(message="Nie znaleziono użytkownika o podanym ID"), 404
         connection.commit()
@@ -180,11 +181,12 @@ def verify_token():
         cursor.execute("UPDATE users SET wasLogged = 1 WHERE token = ?", (token,))
         connection.commit()
         
-        return jsonify(valid=True, userData=user_dict)
+
     except sqlite3.Error:
         return jsonify(message="Błąd serwera"), 500
     finally:
         connection.close()
+    return jsonify(valid=True, userData=user_dict)
 
 @app.route('/check-token', methods=['GET'])
 def check_token():
