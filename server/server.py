@@ -498,6 +498,8 @@ def get_unread_messages():
     
     try:
         user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
+        if not user:
+            return jsonify(message="Nieprawidłowy token"), 401
         user_id = user[0]
         
         cursor.execute("""
@@ -510,6 +512,9 @@ def get_unread_messages():
         
         unread_counts = {row[0]: row[1] for row in cursor.fetchall()}
         return jsonify({'unreadCounts': unread_counts})
+    except sqlite3.Error as e:
+        print(f"Błąd bazy danych: {str(e)}")  # Dodane logowanie błędów
+        return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
     finally:
         connection.close()
         
@@ -734,10 +739,10 @@ def get_group_messages(group_id):
         connection.close()
 
 @app.route('/group-conversations/<group_id>/messages', methods=['POST'])
-def send_group_message(group_id):
+def create_group_message(group_id):
     auth_header = request.headers.get('Authorization')
     if not auth_header:
-        return jsonify(message="Brak nagłówka Authorization"), 400
+        return jsonify(message="Brak autoryzacji"), 401
     token = auth_header.split()[1]
 
     content = request.json.get('content')
@@ -747,25 +752,28 @@ def send_group_message(group_id):
     connection = sqlite3.connect('mydatabase.sqlite')
     cursor = connection.cursor()
     try:
-        cursor.execute("SELECT id FROM users WHERE token = ?", (token,))
-        user_row = cursor.fetchone()
-        if not user_row:
+        user = cursor.execute("SELECT id FROM users WHERE token = ?", (token,)).fetchone()
+        if not user:
             return jsonify(message="Nieprawidłowy token"), 401
-        user_id = user_row[0]
 
-        now = datetime.utcnow().isoformat()
         cursor.execute("""
-            INSERT INTO group_messages (group_conversation_id, user_id, content, timestamp)
+            INSERT INTO group_messages (user_id, group_conversation_id, content, timestamp)
             VALUES (?, ?, ?, ?)
-        """, (group_id, user_id, content, now))
-        message_id = cursor.lastrowid
+        """, (
+            user[0],
+            group_id,
+            content,
+            datetime.now().isoformat()
+        ))
+        new_message_id = cursor.lastrowid
 
         connection.commit()
-        return jsonify(message_id=message_id, content=content, group_conversation_id=group_id), 201
+        return jsonify(message_id=new_message_id, content=content, group_conversation_id=group_id)
     except sqlite3.Error as e:
-        return jsonify(message=f"Błąd bazy danych: {e}"), 500
+        return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
     finally:
         connection.close()
+
 
 @app.route('/group-conversations/unread-messages', methods=['GET'])
 def get_unread_group_messages_count():
@@ -791,10 +799,19 @@ def get_unread_group_messages_count():
             GROUP BY gm.group_conversation_id
         """, (user_id,))
         
-        unread_counts = {row[0]: row[1] for row in cursor.fetchall()}
+        unread_counts = {}
+        for row in cursor.fetchall():
+            try:
+                group_id = int(row[0])
+                unread_count = int(row[1])
+                unread_counts[group_id] = unread_count
+            except ValueError:
+                print(f"Nieprawidłowa wartość w wierszu: {row}")
+
         return jsonify({'unreadCounts': unread_counts}), 200
     except sqlite3.Error as e:
-        return jsonify(message=f"Błąd bazy danych: {e}"), 500
+        print(f"Błąd bazy danych: {str(e)}")  # Dodane logowanie błędów
+        return jsonify(message=f"Błąd bazy danych: {str(e)}"), 500
     finally:
         connection.close()
 

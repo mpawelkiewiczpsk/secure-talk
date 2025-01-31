@@ -228,11 +228,6 @@ export const sendMessage = async (conversationId, content) => {
     content: encryptedContent,
   });
 
-  const currentDate = new Date();
-  console.log("Current date:", currentDate);
-
-  console.log("Message data before emitting:", messageData);
-
   socket.emit("send_message", { conversationId, content: encryptedContent });
 
   return messageData;
